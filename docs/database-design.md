@@ -211,10 +211,13 @@ CREATE TABLE viewer_events (
     video_ts     DECIMAL(10,3) NOT NULL,    -- position in video (seconds)
     seek_from    DECIMAL(10,3),             -- only for SEEK events
     client_time  BIGINT      NOT NULL,      -- unix timestamp from browser
-    ingested_at  TIMESTAMP   NOT NULL DEFAULT NOW()
+    ingested_at  TIMESTAMP   NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (id, ingested_at)           -- partition key must be part of PK
 ) PARTITION BY RANGE (ingested_at);
 
--- Monthly partitions (auto-created by application or pg_partman)
+-- Monthly partitions — create new ones before each month begins.
+-- For production, use pg_partman extension to auto-create partitions.
+-- Alembic migration should create partitions 3 months ahead at startup.
 CREATE TABLE viewer_events_2026_03 PARTITION OF viewer_events
     FOR VALUES FROM ('2026-03-01') TO ('2026-04-01');
 

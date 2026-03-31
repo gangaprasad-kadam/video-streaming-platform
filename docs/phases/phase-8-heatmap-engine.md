@@ -28,7 +28,6 @@ services/event-ingestion/
 └── app/
     ├── main.py
     ├── config.py
-    ├── database.py
     ├── redis_client.py
     ├── kafka_producer.py
     ├── exceptions.py        ← service-specific exceptions
