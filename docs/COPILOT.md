@@ -5,6 +5,101 @@
 
 ---
 
+## 🚀 Session Start Prompt
+
+> **Copy-paste this at the start of every new Copilot session:**
+
+```
+Read docs/COPILOT.md in full.
+
+Then follow the Session Protocol defined in it exactly:
+- Check the implementation status table
+- Ask me which phase to work on (show numbered options)
+- Break the phase into individual features, ask which one to start
+- Implement ONE feature at a time
+- Write a test for it, run it, and confirm it passes before moving on
+- After each feature, ask me: "Feature done. What next?" with options
+- Never skip ahead or implement more than one feature at a time
+- Update the status table after each completed phase
+
+Begin now.
+```
+
+---
+
+## 🔄 Session Protocol (Follow This Every Session)
+
+> This is the law. Every session, every phase, every feature — follow this exactly.
+
+### Step 1 — Orient
+1. Read this file (`docs/COPILOT.md`) in full
+2. Read the status table → identify what is `pending` and what is `in_progress`
+3. Ask the user:
+
+   > "Here is the current build status: [show table]
+   > Which phase would you like to work on?
+   > 1. Phase 1 — Infrastructure & Skeleton ⬜
+   > 2. Phase 2 — User Service ⬜
+   > ... (list all pending phases with their status icons)
+   > Type the number or name."
+
+### Step 2 — Select a Feature
+Once a phase is chosen:
+1. Read the phase doc (`docs/phases/phase-X-*.md`)
+2. Break the phase into atomic features (each feature = one route, one worker function, one schema, etc.)
+3. Ask the user:
+
+   > "Phase X has these features to build:
+   > 1. [Feature A]
+   > 2. [Feature B]
+   > 3. [Feature C]
+   > Which one should we start with? (Recommended: 1)"
+
+### Step 3 — Implement One Feature
+1. State clearly: **"Building: [Feature Name]"**
+2. Read the relevant sections from `docs/lld.md`, `docs/database-design.md`, `docs/phases/shared-patterns.md`
+3. Implement the feature following conventions in this file
+4. Show a summary of files created/changed
+
+### Step 4 — Test Before Marking Done
+1. Write the test (or show the test file location if it already exists)
+2. Run the test
+3. If test **passes** → announce: ✅ `[Feature Name]` complete
+4. If test **fails** → fix the code, re-run, do NOT move on until green
+5. Never mark a feature done without a passing test
+
+### Step 5 — Ask What Next
+After every completed feature, ask:
+
+> "✅ [Feature Name] is done and tested.
+> What would you like to do next?
+> 1. Continue with next feature in this phase: [Feature B]
+> 2. Switch to a different phase
+> 3. Review what was built
+> 4. Commit changes to git"
+
+### Step 6 — Phase Complete
+When all features in a phase are tested and done:
+1. Update the status table in this file: `⬜ pending` → `✅ done`
+2. Run the full test suite for the phase
+3. Announce: **"Phase X complete. All tests passing."**
+4. Ask the user which phase to tackle next
+
+---
+
+## ⚠️ Hard Rules (Never Break These)
+
+| Rule | Detail |
+|---|---|
+| One feature at a time | Never implement Feature B while Feature A is untested |
+| Test before done | A feature without a passing test is NOT done |
+| Ask before proceeding | Always ask the user before moving to the next feature/phase |
+| No silent assumptions | If something is unclear, ask with options — never guess |
+| Show options | Always present numbered choices, not open-ended questions |
+| Fix before move | If a test fails, fix it NOW — do not defer |
+
+---
+
 ## 📌 Project Identity
 
 | Field | Value |
@@ -24,11 +119,12 @@
 | Document | Path | Read When |
 |---|---|---|
 | This file | `docs/COPILOT.md` | Every session start |
-| Project overview | `docs/intro.md` | First session only |
+| **HLD (Architecture)** | `docs/HLD.md` | First session / any architecture question |
 | **Unique feature** | `docs/unique-feature.md` | Phase 8 |
 | **Database design** | `docs/database-design.md` | Any schema work |
 | **LLD** | `docs/lld.md` | Any service work |
 | **Shared patterns** | `docs/phases/shared-patterns.md` | Every service implementation |
+| **Phase tasks** | `docs/tasks/phase-X.md` | Before implementing any task in that phase |
 | Phase index | `docs/phases/README.md` | Navigation |
 | Phase 1 | `docs/phases/phase-1-infrastructure.md` | Implementing Phase 1 |
 | Phase 2 | `docs/phases/phase-2-user-service.md` | Implementing Phase 2 |
@@ -310,6 +406,9 @@ Phase 1  ───────────────────────�
 |---|---|---|
 | user-service | `tests/test_auth.py` | register, login, logout, expired session, 409 duplicate |
 | video-service | `tests/test_videos.py` | upload, 403 non-creator, status transitions, Kafka publish |
+| streaming-service | `tests/test_streaming.py` | manifest cache, segment validation, 404 not ready, Accept-Ranges |
+| summarization-service | `tests/test_summarization.py` | Whisper+BART pipeline, chunking >1024 tokens, Kafka consumer, 404 |
+| trending-service | `tests/test_trending.py` | ZINCRBY scoring, decay, watch_history upsert, recommendations, PLAY consumer |
 | event-ingestion | `tests/test_event_ingestion.py` | 202 immediate, rate limit 429, Kafka published |
 | heatmap-aggregator | `tests/test_heatmap_aggregator.py` | segment bucketing, Redis INCR, viral alert |
 | heatmap-api | `tests/test_heatmap_api.py` | fetch heatmap, 403 non-creator, highlights top 5 |
@@ -363,16 +462,10 @@ HEATMAP_API_PORT=8007
 
 ## ▶️ How to Start a Session
 
-1. Read this file (`docs/COPILOT.md`)
-2. Check implementation status table above
-3. Read the phase doc for the current phase
-4. Read `docs/phases/shared-patterns.md` for patterns
-5. Check relevant DB tables in `docs/database-design.md`
-6. Check LLD section for the service in `docs/lld.md`
-7. Update SQL todos: `UPDATE todos SET status='in_progress' WHERE id='phase-X'`
-8. Implement — follow conventions above strictly
-9. Run tests for the phase
-10. Update status table in this file + SQL todos to `done`
+1. Copy the **Session Start Prompt** (top of this file) and paste it into Copilot
+2. Copilot will read this file, show you the status table, and ask which phase to work on
+3. Pick a phase → pick a feature → it will implement + test it → ask what's next
+4. Repeat until the project is complete
 
 ---
 

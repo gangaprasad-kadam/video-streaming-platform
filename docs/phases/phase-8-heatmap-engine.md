@@ -36,7 +36,6 @@ services/event-ingestion/
     └── events/
         ├── router.py
         ├── service.py
-        ├── repository.py    ← DB queries (watch_history upsert)
         ├── cache.py         ← Redis rate-limit operations
         └── schemas.py
 ```
@@ -88,29 +87,11 @@ async def ingest_event(
     return {"message": "accepted"}
 ```
 
-### Watch History Side Effect
+### Watch History
 
-When `eventType` is `PLAY`, a background task also upserts a row into the `watch_history` PostgreSQL table so that both the Trending Service and the Recommendation logic have access to it:
-
-```python
-# events/service.py
-async def handle_event(event: InteractionEvent, user_id: str, background_tasks: BackgroundTasks):
-    background_tasks.add_task(kafka_producer.publish, event, user_id)
-    if event.eventType == "PLAY":
-        background_tasks.add_task(repo.upsert_watch_history, user_id, str(event.videoId))
-
-# events/repository.py
-async def upsert_watch_history(user_id: str, video_id: str):
-    await db.execute(
-        """
-        INSERT INTO watch_history (user_id, video_id, watched_at, watch_pct)
-        VALUES (:user_id, :video_id, NOW(), 0)
-        ON CONFLICT (user_id, video_id)
-        DO UPDATE SET watched_at = NOW()
-        """,
-        {"user_id": user_id, "video_id": video_id}
-    )
-```
+> **Note:** Event Ingestion does **not** write to `watch_history`.
+> The **Trending Service** (Phase 7) is the sole writer — it upserts `watch_history`
+> when it consumes `PLAY` events from `viewer-interaction-events`.
 
 ### Kafka Publish
 

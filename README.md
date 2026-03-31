@@ -1,15 +1,23 @@
-# video-streaming-platform
+# Distributed Video Streaming Platform
 
 A scalable distributed video streaming platform (YouTube/Netflix-style) built with microservices, event-driven architecture, and real-time analytics.
 
-## 🤖 For Copilot: Start Here
+**Unique Feature 🔥** — Viewer Behavior Heatmap Engine: real-time per-second engagement analytics overlaid on the video player.
 
-> **[docs/COPILOT.md](docs/COPILOT.md)** — implementation reference, status tracker, all conventions
+---
 
 ## 📄 Documentation
 
-- [Project Overview & Architecture](docs/intro.md)
-- [🗄️ Database Design](docs/database-design.md)
-- [🔩 Low-Level Design (LLD)](docs/lld.md)
-- [🔥 Unique Feature: Viewer Behavior Heatmap Engine](docs/unique-feature.md)
-- [📋 All Phases](docs/phases/README.md)
+| Doc | Description |
+|---|---|
+| [🏗️ HLD — High-Level Design](docs/HLD.md) | Architecture diagram, component breakdown, all data flows |
+| [🗄️ Database Design](docs/database-design.md) | Full PostgreSQL / Redis / MongoDB schema |
+| [🔩 Low-Level Design (LLD)](docs/lld.md) | Per-service implementation details |
+| [🔥 Heatmap Engine (Unique Feature)](docs/unique-feature.md) | Deep-dive into the heatmap system |
+| [📋 Phase Guides](docs/phases/README.md) | Step-by-step build phases |
+
+---
+
+## 🤖 For Copilot
+
+> **[docs/COPILOT.md](docs/COPILOT.md)** — implementation reference, conventions, status tracker. Read at the start of every session.
