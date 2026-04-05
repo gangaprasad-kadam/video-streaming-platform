@@ -24,25 +24,30 @@ A standalone FastAPI microservice that handles user registration, login, logout,
 services/user-service/
 ├── Dockerfile
 ├── requirements.txt
+├── alembic.ini
+├── migrations/
+│   ├── env.py
+│   └── versions/
 ├── app/
 │   ├── main.py          ← FastAPI app entry point (lifespan, exception handlers)
 │   ├── config.py        ← env-based config (pydantic BaseSettings)
 │   ├── database.py      ← PostgreSQL connection (SQLAlchemy async)
 │   ├── redis_client.py  ← Redis connection
-│   ├── models.py        ← SQLAlchemy ORM models
-│   ├── exceptions.py    ← re-exports shared exceptions + any service-specific ones
-│   ├── dependencies.py  ← re-exports shared get_db, get_redis, get_current_user
-│   ├── auth/
-│   │   ├── router.py    ← /auth/* endpoints
-│   │   ├── service.py   ← business logic
-│   │   ├── repository.py ← DB queries only
-│   │   ├── cache.py     ← Redis session operations
-│   │   └── schemas.py   ← auth-specific Pydantic schemas
-│   └── users/
-│       ├── router.py    ← /users/* endpoints
-│       ├── service.py
-│       ├── repository.py
-│       └── schemas.py
+│   ├── models.py        ← [L3] ALL SQLAlchemy ORM models for this service
+│   ├── exceptions.py    ← EmailConflict, AuthError, UserNotFound
+│   ├── auth/            ← Domain: Authentication
+│   │   ├── __init__.py
+│   │   ├── router.py    ← [L1] POST /auth/register, POST /auth/login, POST /auth/logout
+│   │   ├── schemas.py   ← [L1] RegisterRequest, LoginRequest, UserResponse
+│   │   ├── service.py   ← [L2] register(), login(), logout()
+│   │   ├── repository.py ← [L3] get_by_email(), create_user()
+│   │   └── cache.py     ← [L3] set_session(), get_session(), delete_session()
+│   └── users/           ← Domain: User Profile
+│       ├── __init__.py
+│       ├── router.py    ← [L1] GET /users/me
+│       ├── schemas.py   ← [L1] UserProfileResponse
+│       ├── service.py   ← [L2] get_me()
+│       └── repository.py ← [L3] get_user_by_id()
 └── tests/
     ├── conftest.py
     ├── test_auth.py
@@ -120,7 +125,7 @@ Cookie sent to browser:
 All services that need auth will use a shared `get_current_user` dependency:
 
 ```python
-# shared/auth_middleware.py
+# shared/dependencies.py
 async def get_current_user(
     request: Request,
     redis: Redis = Depends(get_redis)

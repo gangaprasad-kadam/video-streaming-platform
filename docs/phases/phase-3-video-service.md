@@ -25,19 +25,25 @@ A FastAPI microservice that handles video file uploads, metadata storage, and li
 services/video-service/
 ├── Dockerfile
 ├── requirements.txt
+├── alembic.ini
+├── migrations/
+│   ├── env.py
+│   └── versions/
 ├── app/
 │   ├── main.py
 │   ├── config.py
 │   ├── database.py
-│   ├── kafka_producer.py   ← aiokafka producer
-│   ├── models.py
-│   ├── exceptions.py       ← re-exports shared exceptions + service-specific ones
-│   └── videos/
-│       ├── router.py
-│       ├── service.py
-│       ├── repository.py   ← DB queries only
-│       ├── cache.py        ← Redis operations only
-│       └── schemas.py
+│   ├── redis_client.py
+│   ├── kafka_producer.py    ← Produces: video.uploaded
+│   ├── models.py            ← [L3] Video SQLAlchemy model
+│   ├── exceptions.py        ← VideoNotFound, StorageError
+│   └── videos/              ← Domain: Video Management
+│       ├── __init__.py
+│       ├── router.py        ← [L1] POST /videos/upload, GET /videos/{id}, GET /videos
+│       ├── schemas.py       ← [L1] VideoUploadRequest, VideoResponse, VideoListResponse
+│       ├── service.py       ← [L2] upload_video(), get_video(), list_videos()
+│       ├── repository.py    ← [L3] DB queries only
+│       └── cache.py         ← [L3] Redis operations only
 └── tests/
     ├── conftest.py
     └── test_videos.py
