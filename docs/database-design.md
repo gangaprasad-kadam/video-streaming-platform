@@ -4,12 +4,12 @@
 
 The platform uses a **polyglot persistence** strategy — different databases for different data characteristics:
 
-| Database | Role | Used By |
-|---|---|---|
-| **PostgreSQL** | Primary relational store — users, videos, heatmaps, history | All services |
-| **Redis** | Ephemeral cache, sessions, counters, pub/sub | All services |
-| **MongoDB** | Append-only logs, unstructured processing audit trails | Processing workers, error tracking |
-| **Kafka** | Durable event log (not a DB, but treated as source of truth for events) | All services |
+| Database       | Role                                                                    | Used By                            |
+| -------------- | ----------------------------------------------------------------------- | ---------------------------------- |
+| **PostgreSQL** | Primary relational store — users, videos, heatmaps, history             | All services                       |
+| **Redis**      | Ephemeral cache, sessions, counters, pub/sub                            | All services                       |
+| **MongoDB**    | Append-only logs, unstructured processing audit trails                  | Processing workers, error tracking |
+| **Kafka**      | Durable event log (not a DB, but treated as source of truth for events) | All services                       |
 
 ---
 
@@ -173,9 +173,10 @@ CREATE INDEX idx_summaries_video_id ON video_summaries(video_id);
 ```
 
 `key_moments` JSONB structure:
+
 ```json
 [
-  { "timestamp": 42.0,  "label": "Introduction" },
+  { "timestamp": 42.0, "label": "Introduction" },
   { "timestamp": 180.5, "label": "Live coding demo" },
   { "timestamp": 320.0, "label": "Common mistakes" }
 ]
@@ -294,14 +295,14 @@ viewer_events (N) ─── (partitioned by date, no FK enforced for performance
 
 ### 1.4 Cardinalities
 
-| Relationship | Type | Notes |
-|---|---|---|
-| User → Videos | 1 : N | One creator, many videos |
-| Video → Summary | 1 : 0..1 | Generated asynchronously after processing |
-| User ↔ Video (watch_history) | N : M | Many users watch many videos |
-| Video → Heatmap Snapshots | 1 : N | Many hourly snapshots per video |
-| Video → Viewer Events | 1 : N | Raw event log, partitioned |
-| Video → Viral Alerts | 1 : N | Multiple alerts possible per video |
+| Relationship                 | Type     | Notes                                     |
+| ---------------------------- | -------- | ----------------------------------------- |
+| User → Videos                | 1 : N    | One creator, many videos                  |
+| Video → Summary              | 1 : 0..1 | Generated asynchronously after processing |
+| User ↔ Video (watch_history) | N : M    | Many users watch many videos              |
+| Video → Heatmap Snapshots    | 1 : N    | Many hourly snapshots per video           |
+| Video → Viewer Events        | 1 : N    | Raw event log, partitioned                |
+| Video → Viral Alerts         | 1 : N    | Multiple alerts possible per video        |
 
 ---
 
@@ -331,6 +332,7 @@ viewer_events (N) ─── (partitioned by date, no FK enforced for performance
 ### 2.2 Detailed Key Descriptions
 
 #### Sessions
+
 ```
 Key   : session:{sessionId}
 Type  : String
@@ -343,6 +345,7 @@ Example:
 ```
 
 #### HLS Manifest Cache
+
 ```
 Key   : stream:manifest:{videoId}
 Type  : String
@@ -355,6 +358,7 @@ Example:
 ```
 
 #### Summary Cache
+
 ```
 Key   : summary:{videoId}
 Type  : String (JSON)
@@ -367,6 +371,7 @@ Example:
 ```
 
 #### Trending Sorted Set
+
 ```
 Key    : trending:videos
 Type   : Sorted Set
@@ -390,6 +395,7 @@ Visual:
 ```
 
 #### Heatmap Live Counter
+
 ```
 Key   : heatmap:{videoId}:live:{segmentId}
 Type  : Hash
@@ -404,6 +410,7 @@ Example:
 ```
 
 #### Heatmap Total Counter
+
 ```
 Key   : heatmap:{videoId}:total:{segmentId}
 Type  : Hash
@@ -418,6 +425,7 @@ Segment IDs: segmentId = floor(videoTimestamp / 5)
 ```
 
 #### Heatmap Baseline (for Viral Detection)
+
 ```
 Key   : heatmap:{videoId}:baseline:{segmentId}
 Type  : Hash
@@ -431,6 +439,7 @@ Used by viral detector:
 ```
 
 #### Rate Limit Token Bucket
+
 ```
 Key   : ratelimit:events:{sessionId}
 Type  : String (integer counter)
@@ -559,83 +568,93 @@ Kafka is the event backbone. Each topic acts as a durable, ordered log.
 ### 4.2 Event Schemas
 
 #### `video.uploaded`
+
 ```json
 {
-  "videoId":    "uuid",
-  "creatorId":  "uuid",
-  "filePath":   "/media/uploads/uuid.mp4",
-  "mimeType":   "video/mp4",
-  "title":      "My Video Title",
+  "videoId": "uuid",
+  "creatorId": "uuid",
+  "filePath": "/media/uploads/uuid.mp4",
+  "mimeType": "video/mp4",
+  "title": "My Video Title",
   "uploadedAt": "2026-03-31T12:00:00Z"
 }
 ```
+
 **Produced by:** Video Service  
 **Consumed by:** Encoding Worker (group: `encoding-worker-group`), Thumbnail Worker (group: `thumbnail-worker-group`)
 
 ---
 
 #### `video.processed`
+
 ```json
 {
-  "videoId":      "uuid",
-  "creatorId":    "uuid",
-  "hlsPath":      "/media/hls/uuid/index.m3u8",
-  "thumbnailPath":"/media/thumbnails/uuid.jpg",
-  "duration":     542.3,
-  "processedAt":  "2026-03-31T12:05:00Z"
+  "videoId": "uuid",
+  "creatorId": "uuid",
+  "hlsPath": "/media/hls/uuid/index.m3u8",
+  "thumbnailPath": "/media/thumbnails/uuid.jpg",
+  "duration": 542.3,
+  "processedAt": "2026-03-31T12:05:00Z"
 }
 ```
+
 **Produced by:** Encoding Worker  
 **Consumed by:** Summarization Service (group: `summarization-service-group`)
 
 ---
 
 #### `viewer-interaction-events`
+
 ```json
 {
-  "videoId":    "uuid",
-  "userId":     "uuid | null",
-  "sessionId":  "uuid",
-  "eventType":  "REWIND | PAUSE | SEEK | SKIP | PLAY | SPEED_CHANGE | BUFFER",
-  "videoTs":    142.5,
-  "seekFrom":   null,
+  "videoId": "uuid",
+  "userId": "uuid | null",
+  "sessionId": "uuid",
+  "eventType": "REWIND | PAUSE | SEEK | SKIP | PLAY | SPEED_CHANGE | BUFFER",
+  "videoTs": 142.5,
+  "seekFrom": null,
   "clientTime": 1711882140,
   "ingestedAt": "2026-03-31T12:30:00Z"
 }
 ```
+
 **Produced by:** Event Ingestion Service  
 **Consumed by:** Heatmap Aggregator (group: `heatmap-aggregator-group`), Trending Service (group: `trending-service-group`)
 
 ---
 
 #### `heatmap-aggregated`
+
 ```json
 {
-  "videoId":   "uuid",
+  "videoId": "uuid",
   "segmentId": 28,
-  "window":    "live | hourly",
-  "counts":    { "REWIND": 45, "PAUSE": 12, "SEEK": 8, "SKIP": 3 },
+  "window": "live | hourly",
+  "counts": { "REWIND": 45, "PAUSE": 12, "SEEK": 8, "SKIP": 3 },
   "updatedAt": "2026-03-31T12:30:05Z"
 }
 ```
+
 **Produced by:** Heatmap Aggregator  
 **Consumed by:** Heatmap API (SSE push trigger)
 
 ---
 
 #### `heatmap-alerts`
+
 ```json
 {
-  "videoId":   "uuid",
+  "videoId": "uuid",
   "creatorId": "uuid",
   "segmentId": 28,
-  "metric":    "REWIND_RATE",
-  "value":     0.67,
-  "baseline":  0.12,
-  "sigma":     4.2,
+  "metric": "REWIND_RATE",
+  "value": 0.67,
+  "baseline": 0.12,
+  "sigma": 4.2,
   "alertedAt": "2026-03-31T12:30:10Z"
 }
 ```
+
 **Produced by:** Heatmap Aggregator  
 **Consumed by:** (Notification Service — future)
 

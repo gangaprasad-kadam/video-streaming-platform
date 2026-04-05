@@ -1,0 +1,61 @@
+sequenceDiagram
+    actor Viewer as 👤 Viewer
+    participant Browser as ⚛️ Browser + hls.js
+    participant NGINX as 🚦 NGINX
+    participant SS as ▶️ Streaming Service
+    participant Redis as ⚡ Redis Cache
+    participant Disk as 💾 Disk (HLS files)
+    participant HAPI as 📊 Heatmap API
+    participant EI as 📡 Event Ingestion
+    participant Kafka as 📨 Kafka
+    participant HAG as 🌡️ Heatmap Aggregator
+    participant TS as 📈 Trending Service
+
+    Viewer->>Browser: Click a video to watch
+
+    par Load video stream
+        Browser->>NGINX: GET /stream/{videoId}/manifest.m3u8
+        NGINX->>SS: Forward request
+        SS->>Redis: Check cache → stream:manifest:{vid}
+        alt Cache HIT (fast ⚡)
+            Redis-->>SS: Return cached manifest
+        else Cache MISS (first time)
+            SS->>Disk: Read .m3u8 playlist file
+            SS->>Redis: Store in cache
+        end
+        SS-->>Browser: HLS manifest (quality options)
+        Browser->>Browser: hls.js picks best quality\nbased on internet speed
+        loop Continuous streaming
+            Browser->>NGINX: GET /stream/{videoId}/{chunk}.ts
+            NGINX->>SS: Forward
+            SS->>Disk: Read video chunk
+            SS-->>Browser: Video segment (.ts file)
+        end
+    and Load live heatmap
+        Browser->>NGINX: GET /api/heatmap/{videoId}
+        NGINX->>HAPI: Forward
+        HAPI->>Redis: Read heatmap:{vid}:live:* counters
+        HAPI-->>Browser: Heat scores per 5-sec segment
+        Browser->>Browser: recharts renders 🔴🟠🟡🟢🔵 color bar
+    end
+
+    Note over Browser,HAG: Every few seconds while watching → silent background events
+
+    loop Every viewer action (play, pause, seek)
+        Browser->>NGINX: POST /api/events {type, videoId, position}
+        NGINX->>EI: Forward
+        EI->>Redis: Check rate limit (max 100/min)
+        EI-->>Browser: 202 Accepted ← IMMEDIATE, never waits!
+        EI->>Kafka: Publish → viewer-interaction-events
+
+        par Update heatmap
+            Kafka->>HAG: Consume event
+            HAG->>Redis: INCR heatmap:{vid}:live:{bucket}
+            HAG->>Redis: INCR heatmap:{vid}:total:{bucket}
+        and Update trending
+            Kafka->>TS: Consume event
+            TS->>Redis: ZINCRBY trending:videos {videoId}
+        end
+    end
+
+    Note over Browser,HAG: Heatmap bar updates in real-time via SSE 🎨

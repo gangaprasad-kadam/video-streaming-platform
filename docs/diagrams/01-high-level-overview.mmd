@@ -1,0 +1,81 @@
+flowchart TB
+    USER(["👤 User / Creator\n(Any browser, any device)"])
+
+    subgraph FRONT["🌐 What the User Sees"]
+        direction TB
+        APP["⚛️ React Web App\nWatch videos · Upload · Dashboard\nHeatmap · Trending feed"]
+    end
+
+    subgraph GATE["🚦 Front Door"]
+        NGINX["NGINX Gateway\nPort 80\n─────────────────────\nRoutes every request\nRate limiting\nServes the web app"]
+    end
+
+    subgraph MICRO["📦 Backend Services  —  each does ONE job"]
+        direction LR
+        US["👤 User Service\nLogin · Register · Logout"]
+        VS["🎬 Video Service\nUpload · Metadata"]
+        SS["▶️ Streaming Service\nServe HLS video chunks"]
+        SUM["🤖 AI Summarization\nWhisper speech-to-text\nBART text summary"]
+        TS["📈 Trending Service\nLeaderboard · Suggestions"]
+        EI["📡 Event Ingestion\nCollect viewer actions\nNever blocks playback"]
+        HAPI["📊 Heatmap API\nLive color bar data"]
+    end
+
+    subgraph ASYNC["⚙️ Background Workers  —  always running, no HTTP"]
+        direction LR
+        EW["🎞️ Encoding Worker\nffmpeg converts video\n→ 360p / 720p / 1080p HLS"]
+        TW["🖼️ Thumbnail Worker\nffmpeg extracts\npreview image"]
+        HAG["🌡️ Heatmap Aggregator\nCounts views per 5-sec\nDetects viral spikes"]
+    end
+
+    subgraph BUS["📨 Kafka — Internal Message Bus"]
+        direction LR
+        K1["📼 video.uploaded"]
+        K2["✅ video.processed"]
+        K3["👁️ viewer-events"]
+        K4["🌡️ heatmap-aggregated"]
+    end
+
+    subgraph DATA["🗄️ Data Storage"]
+        direction LR
+        PG[("🐘 PostgreSQL\nUsers · Videos\nSummaries · History\nHeatmap snapshots")]
+        RD[("⚡ Redis\nSessions · Cache\nTrending board\nLive heatmap counters")]
+        MG[("🍃 MongoDB\nLogs only\nAuto-deleted after TTL")]
+    end
+
+    USER --> APP
+    APP -->|"HTTPS"| NGINX
+    NGINX --> US & VS & SS & SUM & TS & EI & HAPI
+
+    VS -->|"Publish"| K1
+    EI -->|"Publish"| K3
+
+    K1 -->|"Consume"| EW
+    K1 -->|"Consume"| TW
+    K2 -->|"Consume"| SUM
+    K3 -->|"Consume"| HAG
+    K3 -->|"Consume"| TS
+    K4 -->|"Consume"| HAPI
+
+    EW -->|"Publish"| K2
+    HAG -->|"Publish"| K4
+
+    US & VS & SUM & TS & EI & HAPI <-->|"Read / Write"| RD
+    US & VS & SUM & TS & HAG <-->|"Read / Write"| PG
+    EW & TW & HAG -->|"Write logs"| MG
+
+    classDef user fill:#ff6b6b,stroke:#c0392b,color:#fff,font-weight:bold,font-size:15px
+    classDef front fill:#1a1a2e,stroke:#e94560,color:#fff,font-size:13px
+    classDef gate fill:#0f3460,stroke:#e94560,color:#fff,font-size:13px
+    classDef svc fill:#16213e,stroke:#4fc3f7,color:#fff,font-size:12px
+    classDef worker fill:#4a235a,stroke:#ce93d8,color:#fff,font-size:12px
+    classDef kafka fill:#b71c1c,stroke:#ef9a9a,color:#fff,font-size:12px
+    classDef db fill:#1b5e20,stroke:#a5d6a7,color:#fff,font-size:12px
+
+    class USER user
+    class APP front
+    class NGINX gate
+    class US,VS,SS,SUM,TS,EI,HAPI svc
+    class EW,TW,HAG worker
+    class K1,K2,K3,K4 kafka
+    class PG,RD,MG db

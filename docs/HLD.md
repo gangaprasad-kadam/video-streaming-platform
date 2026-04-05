@@ -74,7 +74,9 @@
 ## 🧱 Component Breakdown
 
 ### 1. 🖥️ Frontend — React 18 + Vite (port 3000)
+
 The UI layer. Users browse, upload, and watch videos here.
+
 - **hls.js** handles adaptive bitrate video playback
 - **recharts** renders the live viewer heatmap overlay
 - Communicates only with NGINX — never directly with microservices
@@ -82,7 +84,9 @@ The UI layer. Users browse, upload, and watch videos here.
 ---
 
 ### 2. 🚦 NGINX API Gateway (port 80)
+
 The single entry point for all traffic.
+
 - Routes `/api/users/*` → user-service
 - Routes `/api/videos/*` → video-service
 - Routes `/stream/*` → streaming-service
@@ -94,29 +98,30 @@ The single entry point for all traffic.
 
 ### 3. 🔧 Microservices
 
-| Service | Port | Responsibility |
-|---|---|---|
-| **user-service** | 8001 | Register · login · session auth (Redis) |
-| **video-service** | 8002 | Upload metadata · trigger Kafka `video.uploaded` |
-| **streaming-service** | 8003 | Serve HLS manifests + `.ts` chunks from disk |
-| **summarization-service** | 8004 | Whisper transcription → BART summary → cache |
-| **trending-service** | 8005 | ZINCRBY in Redis → leaderboard via ZREVRANGE |
-| **event-ingestion** | 8006 | Accept viewer events (202 Accepted) → Kafka |
-| **heatmap-api** | 8007 | Serve heatmap data · SSE live feed · highlights |
+| Service                   | Port | Responsibility                                   |
+| ------------------------- | ---- | ------------------------------------------------ |
+| **user-service**          | 8001 | Register · login · session auth (Redis)          |
+| **video-service**         | 8002 | Upload metadata · trigger Kafka `video.uploaded` |
+| **streaming-service**     | 8003 | Serve HLS manifests + `.ts` chunks from disk     |
+| **summarization-service** | 8004 | Whisper transcription → BART summary → cache     |
+| **trending-service**      | 8005 | ZINCRBY in Redis → leaderboard via ZREVRANGE     |
+| **event-ingestion**       | 8006 | Accept viewer events (202 Accepted) → Kafka      |
+| **heatmap-api**           | 8007 | Serve heatmap data · SSE live feed · highlights  |
 
 ---
 
 ### 4. ⚙️ Background Workers (Kafka Consumers, no HTTP port)
 
-| Worker | Consumes | Produces | Does |
-|---|---|---|---|
-| **encoding-worker** | `video.uploaded` | `video.processed` | ffmpeg → 360p/720p/1080p HLS |
-| **thumbnail-worker** | `video.uploaded` | — | ffmpeg → thumbnail image |
+| Worker                 | Consumes                    | Produces                               | Does                                                                  |
+| ---------------------- | --------------------------- | -------------------------------------- | --------------------------------------------------------------------- |
+| **encoding-worker**    | `video.uploaded`            | `video.processed`                      | ffmpeg → 360p/720p/1080p HLS                                          |
+| **thumbnail-worker**   | `video.uploaded`            | —                                      | ffmpeg → thumbnail image                                              |
 | **heatmap-aggregator** | `viewer-interaction-events` | `heatmap-aggregated`, `heatmap-alerts` | 5-second bucket INCR in Redis · flush to PostgreSQL · spike detection |
 
 ---
 
 ### 5. 📨 Kafka Event Bus
+
 All async communication flows through Kafka. Services are **never** directly coupled.
 
 ```
@@ -139,11 +144,11 @@ Creator uploads video
 
 ### 6. 🗄️ Data Stores
 
-| Store | Purpose | Why |
-|---|---|---|
-| **PostgreSQL** | Users, videos, heatmaps, history | Relational, ACID transactions |
-| **Redis** | Sessions, heatmap counters, trending sorted set, manifest cache | Sub-millisecond reads; TTL support |
-| **MongoDB** | Processing logs, error logs | Flexible schema; TTL auto-rotation |
+| Store          | Purpose                                                         | Why                                |
+| -------------- | --------------------------------------------------------------- | ---------------------------------- |
+| **PostgreSQL** | Users, videos, heatmaps, history                                | Relational, ACID transactions      |
+| **Redis**      | Sessions, heatmap counters, trending sorted set, manifest cache | Sub-millisecond reads; TTL support |
+| **MongoDB**    | Processing logs, error logs                                     | Flexible schema; TTL auto-rotation |
 
 ---
 
@@ -171,6 +176,7 @@ The heatmap renders as a color gradient bar beneath the video player — red = m
 ## 🔄 End-to-End Flows
 
 ### Upload Flow
+
 ```
 Creator → NGINX → video-service → PostgreSQL (metadata)
                                → Kafka: video.uploaded
@@ -184,6 +190,7 @@ Creator → NGINX → video-service → PostgreSQL (metadata)
 ```
 
 ### Watch Flow
+
 ```
 Viewer → NGINX → streaming-service → Redis (manifest cache hit?)
                                    → disk (HLS .m3u8 + .ts chunks)
@@ -192,6 +199,7 @@ Viewer → NGINX → streaming-service → Redis (manifest cache hit?)
 ```
 
 ### Auth Flow
+
 ```
 Login → user-service → bcrypt verify → Redis: session:{sid} = userId (TTL 24h)
                                      → HttpOnly cookie: session_id
@@ -202,16 +210,16 @@ All protected routes → shared/dependencies.py → get_current_user → Redis l
 
 ## 🏛️ Key Design Decisions
 
-| Decision | Reason |
-|---|---|
-| **Session auth (not JWT)** | Simpler revocation; Redis already in stack |
-| **No service-to-service REST calls** | Tight coupling avoided; Kafka + shared Redis instead |
-| **202 for viewer events** | Viewer events must NEVER block video playback |
-| **HLS (not DASH)** | Better browser support with hls.js |
-| **5-second heatmap buckets** | Fine-grained insight without storage explosion |
-| **Redis sorted set for trending** | `ZINCRBY` + `ZREVRANGE` = O(log N) leaderboard |
-| **Whisper `base` model** | Runs on CPU; acceptable accuracy for a college project |
-| **Docker Compose** | Single `docker-compose up` brings up all 16 containers |
+| Decision                             | Reason                                                 |
+| ------------------------------------ | ------------------------------------------------------ |
+| **Session auth (not JWT)**           | Simpler revocation; Redis already in stack             |
+| **No service-to-service REST calls** | Tight coupling avoided; Kafka + shared Redis instead   |
+| **202 for viewer events**            | Viewer events must NEVER block video playback          |
+| **HLS (not DASH)**                   | Better browser support with hls.js                     |
+| **5-second heatmap buckets**         | Fine-grained insight without storage explosion         |
+| **Redis sorted set for trending**    | `ZINCRBY` + `ZREVRANGE` = O(log N) leaderboard         |
+| **Whisper `base` model**             | Runs on CPU; acceptable accuracy for a college project |
+| **Docker Compose**                   | Single `docker-compose up` brings up all 16 containers |
 
 ---
 

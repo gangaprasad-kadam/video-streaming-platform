@@ -1,0 +1,44 @@
+sequenceDiagram
+    actor Creator as 👤 Creator
+    participant Browser as ⚛️ Browser
+    participant NGINX as 🚦 NGINX
+    participant VS as 🎬 Video Service
+    participant PG as 🐘 PostgreSQL
+    participant Kafka as 📨 Kafka
+    participant EW as 🎞️ Encoding Worker
+    participant TW as 🖼️ Thumbnail Worker
+    participant SUM as 🤖 Summarization
+
+    Creator->>Browser: Click Upload, select video file
+    Browser->>NGINX: POST /api/videos/upload
+    NGINX->>VS: Forward request
+
+    VS->>PG: INSERT video (status=uploading)
+    VS->>VS: Save raw file to disk
+    VS->>Kafka: Publish → video.uploaded
+    VS-->>Browser: 201 Created ✅
+
+    Note over Kafka,TW: Both workers receive the same event SIMULTANEOUSLY
+
+    par Encoding (video quality versions)
+        Kafka->>EW: Consume video.uploaded
+        EW->>EW: ffmpeg → 360p HLS
+        EW->>EW: ffmpeg → 720p HLS
+        EW->>EW: ffmpeg → 1080p HLS
+        EW->>PG: UPDATE video status=ready
+        EW->>Kafka: Publish → video.processed
+    and Thumbnail (preview image)
+        Kafka->>TW: Consume video.uploaded
+        TW->>TW: ffmpeg → thumbnail.jpg
+        TW->>PG: UPDATE thumbnail_path
+    end
+
+    Note over Kafka,SUM: After encoding completes → AI kicks in
+
+    Kafka->>SUM: Consume video.processed
+    SUM->>SUM: OpenAI Whisper → transcript
+    SUM->>SUM: BART AI → summary text
+    SUM->>PG: INSERT video_summaries
+    SUM->>SUM: Cache in Redis (summary:{vid})
+
+    Note over Creator,SUM: Video is now LIVE — ready to stream! 🎉
