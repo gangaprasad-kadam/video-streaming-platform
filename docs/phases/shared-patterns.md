@@ -7,13 +7,17 @@ All microservices in this project follow the same cross-cutting patterns. This d
 ## 1. Layered Architecture (Every Service)
 
 ```
-Router Layer      app/{domain}/router.py   — HTTP routes, Pydantic validation, Depends()
-Service Layer     app/{domain}/service.py  — Business logic, orchestration
-Repository Layer  app/{domain}/repository.py — SQLAlchemy queries only, returns domain objects
-Cache Layer       app/{domain}/cache.py    — Redis get/set/expire, returns None on miss
+Layer 1 — Presentation   app/{domain}/router.py    — HTTP routes, Pydantic validation, Depends()
+                         app/{domain}/schemas.py   — Pydantic request/response models
+Layer 2 — Business Logic app/{domain}/service.py   — All business logic, orchestration
+Layer 3 — Data           app/models.py             — ALL SQLAlchemy ORM models (service-wide)
+                         app/{domain}/repository.py — SQLAlchemy queries only, returns domain objects
+                         app/{domain}/cache.py      — Redis get/set/expire, returns None on miss
 ```
 
 No layer may skip another. Service layer calls repository + cache. Router calls service only.
+`models.py` lives at the **app/ level** (shared across all domains in the service).
+`schemas.py` lives inside each **{domain}/** folder (domain-specific request/response shapes).
 
 ---
 

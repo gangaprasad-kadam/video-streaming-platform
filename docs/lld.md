@@ -60,20 +60,29 @@ Every microservice follows a strict **4-layer architecture** to keep concerns se
 ### Naming Convention per Service
 
 ```
-services/{service-name}/app/
-├── main.py           ← FastAPI app factory, lifespan hooks
-├── config.py         ← Pydantic BaseSettings (reads from env)
-├── database.py       ← SQLAlchemy async engine + session factory
-├── redis_client.py   ← Redis connection singleton
-├── kafka_*.py        ← Producer / Consumer
-├── models.py         ← SQLAlchemy ORM models
-├── schemas.py        ← Pydantic request/response schemas
-├── exceptions.py     ← Domain-specific exceptions
-└── {domain}/
-    ├── router.py     ← FastAPI APIRouter
-    ├── service.py    ← Business logic
-    ├── repository.py ← DB queries
-    └── cache.py      ← Redis operations
+services/{service-name}/
+├── Dockerfile
+├── requirements.txt
+├── alembic.ini           (if has DB)
+├── migrations/           (if has DB)
+│   ├── env.py
+│   └── versions/
+└── app/
+    ├── main.py           ← FastAPI app factory, lifespan hooks
+    ├── config.py         ← Pydantic BaseSettings (reads from env)
+    ├── database.py       ← SQLAlchemy async engine + session factory (if DB)
+    ├── redis_client.py   ← Redis connection singleton (if Redis)
+    ├── kafka_producer.py ← Kafka producer (if produces events)
+    ├── kafka_consumer.py ← Kafka consumer (if consumes events)
+    ├── models.py         ← ALL SQLAlchemy ORM models for this service
+    ├── exceptions.py     ← Domain-specific exceptions
+    └── {domain}/
+        ├── __init__.py
+        ├── router.py     ← FastAPI APIRouter (HTTP routes + Depends)
+        ├── schemas.py    ← Pydantic request/response schemas
+        ├── service.py    ← Business logic
+        ├── repository.py ← DB queries only (if DB used)
+        └── cache.py      ← Redis operations only (if Redis used)
 ```
 
 ---
