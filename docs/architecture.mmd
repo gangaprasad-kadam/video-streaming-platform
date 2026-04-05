@@ -1,0 +1,111 @@
+flowchart TD
+    subgraph CLIENT["🌐 CLIENT — Browser"]
+        UI["⚛️ React 18 + Vite\nhls.js · recharts\nPort 3000"]
+    end
+
+    subgraph GATEWAY["🚦 API GATEWAY"]
+        NGINX["NGINX\nPort 80\nRouting · Rate Limiting · Static Files"]
+    end
+
+    subgraph SERVICES["📦 MICROSERVICES — FastAPI + Python"]
+        US["👤 User Service\n:8001\nRegister · Login · Logout"]
+        VS["🎬 Video Service\n:8002\nUpload · Metadata"]
+        SS["▶️ Streaming Service\n:8003\nHLS Manifests + Chunks"]
+        SUM["🤖 Summarization Service\n:8004\nWhisper + BART AI"]
+        TS["🔥 Trending Service\n:8005\nLeaderboard · Recommendations"]
+        EI["📡 Event Ingestion\n:8006\n202 Accepted · Rate Limit"]
+        HA["📊 Heatmap API\n:8007\nHeatmap Data · SSE Live Feed"]
+    end
+
+    subgraph WORKERS["⚙️ BACKGROUND WORKERS — Kafka Consumers"]
+        EW["🎞️ Encoding Worker\nffmpeg → HLS 360p/720p/1080p"]
+        TW["🖼️ Thumbnail Worker\nffmpeg → thumbnail.jpg"]
+        HAG["🌡️ Heatmap Aggregator\n5-sec buckets · Redis INCR\nSpike Detection · Hourly Flush"]
+    end
+
+    subgraph KAFKA["📨 APACHE KAFKA — Event Bus"]
+        K1["📼 video.uploaded\n3 partitions"]
+        K2["✅ video.processed\n3 partitions"]
+        K3["👁️ viewer-interaction-events\n12 partitions"]
+        K4["🌡️ heatmap-aggregated\n6 partitions"]
+        K5["🚨 heatmap-alerts\n3 partitions"]
+    end
+
+    subgraph DATASTORES["🗄️ DATA STORES"]
+        PG[("🐘 PostgreSQL :5432\nusers · videos\nvideo_summaries\nwatch_history\nviewer_events\nheatmap_snapshots\nviral_alerts")]
+        RD[("⚡ Redis :6379\nsession:{sid}\ntrending:videos\nheatmap:{vid}:*\nsummary:{vid}\nstream:manifest:*\nratelimit:events:*")]
+        MG[("🍃 MongoDB :27017\nprocessing_logs\nerror_logs\nTTL auto-rotate")]
+    end
+
+    subgraph INFRA["🔧 INFRASTRUCTURE"]
+        ZK["Zookeeper :2181\nKafka Coordinator"]
+    end
+
+    %% Client → Gateway
+    UI -->|"All HTTP Requests"| NGINX
+
+    %% Gateway → Services
+    NGINX -->|"/api/users/*"| US
+    NGINX -->|"/api/videos/*"| VS
+    NGINX -->|"/stream/*"| SS
+    NGINX -->|"/api/summary/*"| SUM
+    NGINX -->|"/api/trending/*"| TS
+    NGINX -->|"/api/events/*"| EI
+    NGINX -->|"/api/heatmap/*"| HA
+
+    %% Services → Kafka
+    VS -->|"Publish"| K1
+    EI -->|"Publish"| K3
+
+    %% Kafka → Workers
+    K1 -->|"Consume"| EW
+    K1 -->|"Consume"| TW
+    K3 -->|"Consume"| HAG
+    K3 -->|"Consume"| TS
+
+    %% Workers → Kafka
+    EW -->|"Publish"| K2
+    HAG -->|"Publish"| K4
+    HAG -->|"Publish"| K5
+
+    %% Kafka → Services
+    K2 -->|"Consume"| SUM
+    K4 -->|"Consume"| HA
+
+    %% Services → Data Stores
+    US <-->|"Read/Write sessions"| RD
+    US <-->|"Read/Write users"| PG
+    VS <-->|"Read/Write videos"| PG
+    SS <-->|"Cache manifests"| RD
+    SUM <-->|"Save summaries"| PG
+    SUM <-->|"Cache summaries"| RD
+    TS <-->|"Leaderboard ZINCRBY"| RD
+    TS <-->|"watch_history"| PG
+    EI <-->|"Rate limiting"| RD
+    HA <-->|"Live heatmap counters"| RD
+
+    %% Workers → Data Stores
+    EW -->|"processing_logs"| MG
+    TW -->|"processing_logs"| MG
+    HAG <-->|"Hourly flush snapshots"| PG
+    HAG <-->|"INCR buckets"| RD
+
+    %% Infra
+    ZK --- KAFKA
+
+    %% Styling
+    classDef clientStyle fill:#1a1a2e,stroke:#e94560,color:#ffffff,font-size:13px
+    classDef gatewayStyle fill:#16213e,stroke:#0f3460,color:#ffffff,font-size:13px
+    classDef serviceStyle fill:#0f3460,stroke:#e94560,color:#ffffff,font-size:12px
+    classDef workerStyle fill:#533483,stroke:#e94560,color:#ffffff,font-size:12px
+    classDef kafkaStyle fill:#e94560,stroke:#ffffff,color:#ffffff,font-size:12px
+    classDef dbStyle fill:#1b4332,stroke:#52b788,color:#ffffff,font-size:12px
+    classDef infraStyle fill:#343a40,stroke:#adb5bd,color:#ffffff,font-size:12px
+
+    class UI clientStyle
+    class NGINX gatewayStyle
+    class US,VS,SS,SUM,TS,EI,HA serviceStyle
+    class EW,TW,HAG workerStyle
+    class K1,K2,K3,K4,K5 kafkaStyle
+    class PG,RD,MG dbStyle
+    class ZK infraStyle
