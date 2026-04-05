@@ -148,9 +148,9 @@ When all features in a phase are tested and done:
 | Phase | Description | Status | Notes |
 |---|---|---|---|
 | 1 | Infrastructure & Skeleton | ✅ done | Completed |
-| 2 | User Service | ⬜ pending | Depends on 1 |
-| 3 | Video Service | ⬜ pending | Depends on 1 |
-| 4 | Processing Pipeline | ⬜ pending | Depends on 3 |
+| 2 | User Service | ✅ done | 10/10 tests passing |
+| 3 | Video Service | ✅ done | 9/9 tests passing |
+| 4 | Processing Pipeline | ⬜ pending | Depends on 3 — next to build |
 | 5 | Streaming Service | ⬜ pending | Depends on 4 |
 | 6 | AI Summarization | ⬜ pending | Depends on 4 |
 | 7 | Trending & Recommendations | ⬜ pending | Depends on 3 |
@@ -522,6 +522,40 @@ HEATMAP_API_PORT=8007
 
 ## 📝 Session Notes
 
-> Add notes here during implementation for next session context.
+### Cross-DB UUID Type (IMPORTANT)
+All SQLAlchemy models MUST use `sa.Uuid` (from `sqlalchemy import Uuid`) instead of `sqlalchemy.dialects.postgresql.UUID`. Reason: `postgresql.UUID` breaks SQLite used in unit tests. `sa.Uuid` maps to native UUID in PostgreSQL and CHAR(32) in SQLite — works in both environments.
 
-_No notes yet — implementation not started._
+```python
+# ✅ Correct — use this in ALL services
+from sqlalchemy import Uuid
+id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+# ❌ Wrong — breaks SQLite tests
+from sqlalchemy.dialects.postgresql import UUID
+id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ...)
+```
+
+### Test Pattern (all services must follow this)
+- DB: SQLite + aiosqlite in-memory (`sqlite+aiosqlite:///:memory:`)
+- Redis: `AsyncMock` with a plain `dict` as the backing store
+- Kafka: `unittest.mock.patch` on `kafka_producer.publish` to capture events
+- Session auth: seed `store["session:test-session-id"] = "<valid-uuid>"` in conftest
+- `pytest.ini` must include `pythonpath = . ../../services` so `shared` module resolves
+
+### Implemented Services Summary
+| Service | Port | DB | Cache | Kafka | Tests |
+|---|---|---|---|---|---|
+| user-service | 8001 | PostgreSQL (users) | Redis sessions | — | 10/10 ✅ |
+| video-service | 8002 | PostgreSQL (videos) | Redis meta cache | Producer → video.uploaded | 9/9 ✅ |
+
+### Internal Status Update Endpoint
+`PATCH /internal/videos/{id}/status` in video-service is called by encoding-worker and thumbnail-worker (Phase 4) to update status, set `hls_path`, `thumbnail_path`, `duration`. It is idempotent — if status is already `ready` or `failed`, the call is silently ignored.
+
+### docker-compose: Services need explicit env vars
+Each service block in `docker-compose.yml` needs `DATABASE_URL`, `REDIS_URL`, and any Kafka/media vars passed explicitly in the `environment:` section (not just from `env_file`). See user-service and video-service blocks as examples.
+
+### Next: Phase 4 — Processing Pipeline
+Build `encoding-worker` and `thumbnail-worker`. Both consume `video.uploaded` Kafka events, process the file using FFmpeg, then call the internal video-service endpoint to update status.
+- `encoding-worker`: consumes `video.uploaded` → FFmpeg HLS encode → PATCH `/internal/videos/{id}/status` with `status=ready`, `hls_path`, `duration`
+- `thumbnail-worker`: consumes `video.uploaded` → FFmpeg extract frame → PATCH `/internal/videos/{id}/status` with `thumbnail_path`
+
