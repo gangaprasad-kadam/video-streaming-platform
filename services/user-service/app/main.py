@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
     await close_db()
 
 
-app = FastAPI(title="User Service", lifespan=lifespan)
+app = FastAPI(title="User Service", lifespan=lifespan, redirect_slashes=False)
 
 app.include_router(auth_router)
 app.include_router(users_router)

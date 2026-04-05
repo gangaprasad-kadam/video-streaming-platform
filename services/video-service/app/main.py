@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     await close_db()
 
 
-app = FastAPI(title="Video Service", lifespan=lifespan)
+app = FastAPI(title="Video Service", lifespan=lifespan, redirect_slashes=False)
 
 app.include_router(videos_router)
 app.include_router(internal_router)

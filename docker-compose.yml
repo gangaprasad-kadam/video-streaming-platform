@@ -1,5 +1,4 @@
 services:
-
   # ─────────────────────────────────────────────
   # DATABASE LAYER
   # ─────────────────────────────────────────────
@@ -14,7 +13,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -30,7 +29,7 @@ services:
     volumes:
       - mongo_data:/data/db
     ports:
-      - "27017:27017"
+      - "27018:27017"
 
   redis:
     image: redis:7-alpine
@@ -71,7 +70,8 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "kafka:9092"]
+      test:
+        ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "kafka:9092"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -104,7 +104,7 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - media_data:/media:ro            # serves uploaded thumbnails
+      - media_data:/media:ro # serves uploaded thumbnails
     depends_on:
       - kafka
 
@@ -129,7 +129,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    profiles: ["services"]    # only start with --profile services
+    profiles: ["services"] # only start with --profile services
 
   video-service:
     build: ./services/video-service
@@ -138,7 +138,7 @@ services:
     environment:
       PORT: ${VIDEO_SERVICE_PORT}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis:6379/1
+      REDIS_URL: redis://redis:6379/0
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       MEDIA_ROOT: /media
     volumes:
@@ -308,5 +308,5 @@ services:
 volumes:
   postgres_data:
   mongo_data:
-  media_data:       # shared between video-service, encoding-worker, streaming-service
-  model_cache:      # Whisper + BART model files (avoids re-download on restart)
+  media_data: # shared between video-service, encoding-worker, streaming-service
+  model_cache: # Whisper + BART model files (avoids re-download on restart)

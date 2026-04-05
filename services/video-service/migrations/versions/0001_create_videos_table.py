@@ -17,7 +17,8 @@ depends_on = None
 
 def upgrade() -> None:
     op.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
-    op.execute("CREATE TYPE video_status AS ENUM ('uploading', 'processing', 'ready', 'failed')")
+    # Note: SQLAlchemy automatically creates the video_status ENUM type
+    # when op.create_table runs — no need to create it manually.
 
     op.create_table(
         "videos",
