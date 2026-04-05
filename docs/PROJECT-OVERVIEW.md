@@ -680,5 +680,6 @@ Phase 10: Integration & Documentation
 
 ---
 
-> 📄 *Generated from `docs/COPILOT.md` and `docs/HLD.md`*
+> 📄 *Generated from `docs/COPILOT.md`, `docs/HLD.md`, and `docs/PROJECT-STRUCTURE.md`*
 > 🏗️ *Implementation status: All 10 phases pending — ready to build*
+> 📁 *For the full folder structure of every service, see `docs/PROJECT-STRUCTURE.md`*

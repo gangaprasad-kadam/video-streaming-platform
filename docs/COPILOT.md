@@ -120,6 +120,8 @@ When all features in a phase are tested and done:
 |---|---|---|
 | This file | `docs/COPILOT.md` | Every session start |
 | **HLD (Architecture)** | `docs/HLD.md` | First session / any architecture question |
+| **Project Overview** | `docs/PROJECT-OVERVIEW.md` | Client presentation / non-technical review |
+| **Project Structure** | `docs/PROJECT-STRUCTURE.md` | Before implementing any service (canonical folder layout) |
 | **Unique feature** | `docs/unique-feature.md` | Phase 8 |
 | **Database design** | `docs/database-design.md` | Any schema work |
 | **LLD** | `docs/lld.md` | Any service work |
@@ -189,15 +191,17 @@ When all features in a phase are tested and done:
 
 ## 🏗️ Final Folder Structure
 
+> Full detailed tree with all files → see `docs/PROJECT-STRUCTURE.md`
+
 ```
 project/
-├── docker-compose.yml          ← brings up all 13 services + infra
+├── docker-compose.yml          ← brings up all 16 containers with one command
 ├── .env                        ← secrets (gitignored)
 ├── .env.example                ← committed template
 ├── nginx/
-│   └── nginx.conf
+│   └── nginx.conf              ← routing + rate limiting + static files
 ├── services/
-│   ├── shared/                 ← Python package mounted into every service
+│   ├── shared/                 ← Python package mounted (read-only) into every service
 │   │   ├── __init__.py
 │   │   ├── dependencies.py     ← get_db, get_redis, get_current_user
 │   │   ├── exceptions.py       ← AppException hierarchy
@@ -212,8 +216,42 @@ project/
 │   ├── event-ingestion/        ← port 8006
 │   ├── heatmap-aggregator/     ← no port (Kafka consumer)
 │   └── heatmap-api/            ← port 8007
-├── frontend/                   ← React + Vite, port 3000
+├── frontend/                   ← React 18 + Vite, port 3000
 └── docs/                       ← all documentation
+    ├── COPILOT.md              ← this file (AI session reference)
+    ├── HLD.md                  ← high-level architecture
+    ├── lld.md                  ← low-level design per service
+    ├── database-design.md      ← full schema + ER diagram
+    ├── unique-feature.md       ← heatmap engine deep-dive
+    ├── PROJECT-OVERVIEW.md     ← non-technical overview (client-facing)
+    ├── PROJECT-STRUCTURE.md    ← CANONICAL folder layout for all services
+    ├── phases/                 ← per-phase implementation guides
+    ├── tasks/                  ← per-phase task checklists
+    └── diagrams/               ← architecture diagrams (PNG + Mermaid)
+```
+
+**Per-service internal structure** (applies to every service — see `docs/PROJECT-STRUCTURE.md`):
+```
+services/{service-name}/
+├── Dockerfile
+├── requirements.txt
+├── alembic.ini + migrations/   ← (if service has a DB)
+└── app/
+    ├── main.py                 ← FastAPI app factory + lifespan
+    ├── config.py               ← Pydantic BaseSettings
+    ├── database.py             ← SQLAlchemy engine (if DB)
+    ├── redis_client.py         ← Redis connection (if Redis)
+    ├── kafka_producer.py       ← (if publishes events)
+    ├── kafka_consumer.py       ← (if consumes events)
+    ├── models.py               ← ALL SQLAlchemy ORM models [L3]
+    ├── exceptions.py           ← service-specific exceptions
+    └── {domain}/               ← one folder per business domain
+        ├── __init__.py
+        ├── router.py           ← HTTP routes + auth [L1]
+        ├── schemas.py          ← Pydantic request/response [L1]
+        ├── service.py          ← business logic [L2]
+        ├── repository.py       ← DB queries only [L3]
+        └── cache.py            ← Redis ops only [L3]
 ```
 
 ---
@@ -302,16 +340,29 @@ router.py → service.py → repository.py + cache.py → DB/Redis
 
 ### 2. Every service folder must have:
 ```
-app/
-├── main.py          (lifespan hooks + 3 exception handlers)
-├── config.py        (Pydantic BaseSettings + POSTGRES_URL property)
-├── exceptions.py    (re-export AppException + service-specific)
-├── logger.py        (MongoDB ErrorLogger instance)
-└── {domain}/
-    ├── router.py
-    ├── service.py
-    ├── repository.py
-    └── cache.py
+services/{service-name}/
+├── Dockerfile
+├── requirements.txt
+├── alembic.ini          (if service has a DB)
+├── migrations/          (if service has a DB)
+│   ├── env.py
+│   └── versions/
+└── app/
+    ├── main.py          (lifespan hooks + 3 exception handlers)
+    ├── config.py        (Pydantic BaseSettings + POSTGRES_URL property)
+    ├── database.py      (SQLAlchemy async engine — only if DB is used)
+    ├── redis_client.py  (async Redis connection — only if Redis is used)
+    ├── kafka_producer.py (only if service publishes events)
+    ├── kafka_consumer.py (only if service consumes events)
+    ├── models.py        (ALL SQLAlchemy ORM models for this service)
+    ├── exceptions.py    (re-export AppException + service-specific)
+    └── {domain}/
+        ├── __init__.py
+        ├── router.py    (HTTP routes + Depends() + call service only)
+        ├── schemas.py   (Pydantic request/response models)
+        ├── service.py   (all business logic)
+        ├── repository.py (SQLAlchemy queries only — if DB used)
+        └── cache.py     (Redis ops only — if Redis used)
 ```
 
 ### 3. All endpoints return standard envelope
