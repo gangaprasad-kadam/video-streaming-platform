@@ -30,7 +30,7 @@ frontend/
 └── src/
     ├── main.jsx
     ├── App.jsx
-    ├── api/
+    ├── services/            ← API client functions (was api/)
     │   ├── auth.js          ← register, login, logout, me
     │   ├── videos.js        ← upload, fetch, list, status poll
     │   ├── streaming.js     ← HLS manifest URL builder
@@ -38,6 +38,12 @@ frontend/
     │   ├── trending.js      ← fetch trending list
     │   ├── heatmap.js       ← fetch heatmap, SSE connection
     │   └── events.js        ← fire interaction events (batched)
+    ├── hooks/               ← custom React hooks
+    │   ├── useAuth.js
+    │   ├── useHeatmap.js    ← SSE subscription hook
+    │   └── useVideoEvents.js
+    ├── store/               ← global state (Context or Zustand)
+    │   └── authStore.js
     ├── components/
     │   ├── Navbar.jsx
     │   ├── VideoCard.jsx
@@ -99,7 +105,7 @@ frontend/
 
 **Interaction Event Firing:**
 ```javascript
-// api/events.js — batch and send every 3 seconds
+// services/events.js — batch and send every 3 seconds
 const eventBuffer = [];
 
 export function trackEvent(videoId, eventType, videoTs, seekFrom = null) {
@@ -197,7 +203,7 @@ export default function HeatmapChart({ segments }) {
 
 **Live SSE Connection for Dashboard:**
 ```javascript
-// api/heatmap.js
+// services/heatmap.js
 export function connectHeatmapStream(videoId, onUpdate) {
   const es = new EventSource(`/heatmap/${videoId}/stream`);
   es.onmessage = (e) => {
@@ -259,7 +265,7 @@ EXPOSE 3000
 All HTTP calls go through a single axios instance that handles the `SuccessResponse` envelope and global auth redirects.
 
 ```js
-// api/client.js
+// services/client.js
 import axios from "axios";
 
 const client = axios.create({ baseURL: "/", withCredentials: true });
@@ -276,7 +282,7 @@ client.interceptors.response.use(
 export default client;
 ```
 
-Every `api/*.js` module imports `client` instead of `axios` directly.
+Every `services/*.js` module imports `client` instead of `axios` directly.
 
 ---
 

@@ -24,24 +24,32 @@ A Kafka consumer service that listens for `video.processed` events, extracts aud
 services/summarization-service/
 ├── Dockerfile
 ├── requirements.txt
+├── alembic.ini
+├── migrations/
+│   ├── env.py
+│   └── versions/
 └── app/
-    ├── main.py             ← FastAPI app + background Kafka consumer
+    ├── main.py              ← FastAPI app + background Kafka consumer
     ├── config.py
     ├── database.py
     ├── redis_client.py
-    ├── exceptions.py       ← service-specific exceptions
-    ├── logger.py           ← MongoDB ErrorLogger instance
-    ├── consumer.py         ← Kafka consumer loop
-    ├── pipeline/
-    │   ├── audio.py        ← extract audio with ffmpeg
-    │   ├── transcribe.py   ← Whisper transcription
-    │   ├── summarize.py    ← BART summarization
-    │   └── timestamps.py   ← key moment extraction
-    └── api/
-        ├── router.py       ← GET /summary/:videoId
-        ├── repository.py   ← PostgreSQL queries for video_summaries
-        └── cache.py        ← Redis get/set for summary:{videoId}
+    ├── kafka_consumer.py    ← Consumes: video.processed
+    ├── models.py            ← [L3] VideoSummary SQLAlchemy model
+    ├── exceptions.py        ← SummaryNotFound, ModelNotReady
+    └── summarization/
+        ├── __init__.py
+        ├── router.py        ← [L1] GET /summary/{videoId}
+        ├── schemas.py       ← [L1] SummaryResponse (transcript + summary + key moments)
+        ├── service.py       ← [L2] transcribe() → Whisper
+        │                         summarize() → BART
+        │                         get_summary() → cache-aside
+        ├── repository.py    ← [L3] create_summary(), get_by_video_id()
+        └── cache.py         ← [L3] cache_summary(), get_cached_summary()
 ```
+
+> **Note on AI pipeline:** The Whisper + BART pipeline logic lives in `summarization/service.py`.
+> All CPU-heavy calls use `asyncio.get_event_loop().run_in_executor(None, blocking_fn, arg)`
+> to avoid blocking the event loop.
 
 ---
 

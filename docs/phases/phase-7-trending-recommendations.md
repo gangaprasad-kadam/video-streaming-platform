@@ -23,24 +23,27 @@ A FastAPI microservice that maintains a real-time trending leaderboard and provi
 services/trending-service/
 ├── Dockerfile
 ├── requirements.txt
+├── alembic.ini
+├── migrations/
+│   ├── env.py
+│   └── versions/
 └── app/
     ├── main.py
     ├── config.py
     ├── database.py
     ├── redis_client.py
-    ├── consumer.py          ← Kafka consumer for viewer-interaction-events
-    ├── exceptions.py        ← service-specific exceptions
-    ├── logger.py            ← MongoDB ErrorLogger instance
-    ├── trending/
-    │   ├── router.py        ← GET /trending
-    │   ├── service.py       ← Redis sorted set operations
-    │   ├── repository.py    ← DB queries
-    │   └── cache.py         ← Redis operations
-    └── recommendations/
-        ├── router.py        ← GET /recommendations/:userId
-        ├── service.py       ← recommendation logic
-        ├── repository.py    ← DB queries
-        └── cache.py         ← Redis operations
+    ├── kafka_consumer.py    ← Consumes: viewer-interaction-events
+    ├── models.py            ← [L3] WatchHistory SQLAlchemy model
+    ├── exceptions.py
+    └── trending/            ← Domain: Trending + Recommendations
+        ├── __init__.py
+        ├── router.py        ← [L1] GET /trending
+        │                         GET /recommendations/{userId}
+        ├── schemas.py       ← [L1] TrendingResponse, RecommendationResponse
+        ├── service.py       ← [L2] get_trending(), update_score()
+        │                         get_recommendations(), apply_decay()
+        ├── repository.py    ← [L3] upsert_watch_history(), get_user_history()
+        └── cache.py         ← [L3] zincrby_score(), zrevrange_top10()
 ```
 
 ---

@@ -27,12 +27,15 @@ services/streaming-service/
     ├── main.py
     ├── config.py
     ├── redis_client.py
-    ├── exceptions.py    ← service-specific exceptions
-    ├── logger.py        ← MongoDB ErrorLogger instance
+    ├── exceptions.py
     └── streaming/
-        ├── router.py
-        ├── service.py
-        └── repository.py  ← queries videos table for hls_path / status
+        ├── __init__.py
+        ├── router.py        ← [L1] GET /stream/{videoId}/manifest.m3u8
+        │                         GET /stream/{videoId}/{segment}.ts
+        ├── schemas.py       ← [L1] ManifestResponse, SegmentHeaders
+        ├── service.py       ← [L2] get_manifest(), get_segment(), validate_ready()
+        ├── repository.py    ← [L3] queries videos table for hls_path / status
+        └── cache.py         ← [L3] get_cached_manifest(), cache_manifest()
 ```
 
 ---

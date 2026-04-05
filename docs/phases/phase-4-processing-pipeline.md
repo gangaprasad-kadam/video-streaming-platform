@@ -22,26 +22,37 @@ Both are **Kafka consumer services** — they have no HTTP API. They run as long
 services/encoding-worker/
 ├── Dockerfile
 ├── requirements.txt
+├── alembic.ini
+├── migrations/
+│   ├── env.py
+│   └── versions/
 └── app/
-    ├── main.py          ← start consumer loop
+    ├── main.py              ← Kafka consumer runner loop (no FastAPI)
     ├── config.py
-    ├── consumer.py      ← Kafka consumer logic
-    ├── encoder.py       ← ffmpeg HLS encoding
-    ├── repository.py    ← update video status in PostgreSQL
-    ├── exceptions.py    ← service-specific exceptions
-    └── logger.py        ← MongoDB ErrorLogger instance
+    ├── database.py
+    ├── kafka_consumer.py    ← Consumes: video.uploaded
+    ├── kafka_producer.py    ← Publishes: video.processed
+    ├── models.py            ← [L3] Video model (status + hls_path updates)
+    ├── exceptions.py
+    └── encoding/
+        ├── __init__.py
+        ├── service.py       ← [L2] encode_video() — ffmpeg 360p/720p/1080p HLS
+        └── repository.py    ← [L3] update_status(), update_hls_path()
 
 services/thumbnail-worker/
 ├── Dockerfile
 ├── requirements.txt
 └── app/
-    ├── main.py
+    ├── main.py              ← Kafka consumer runner loop (no FastAPI)
     ├── config.py
-    ├── consumer.py
-    ├── thumbnailer.py   ← ffmpeg frame extraction
-    ├── repository.py    ← update thumbnail_path in PostgreSQL
-    ├── exceptions.py    ← service-specific exceptions
-    └── logger.py        ← MongoDB ErrorLogger instance
+    ├── database.py
+    ├── kafka_consumer.py    ← Consumes: video.uploaded
+    ├── models.py            ← [L3] Video model (thumbnail_path update)
+    ├── exceptions.py
+    └── thumbnail/
+        ├── __init__.py
+        ├── service.py       ← [L2] extract_thumbnail() — ffmpeg frame at 5s
+        └── repository.py    ← [L3] update_thumbnail_path()
 ```
 
 ---

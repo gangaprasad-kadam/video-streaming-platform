@@ -30,13 +30,13 @@ services/event-ingestion/
     ├── config.py
     ├── redis_client.py
     ├── kafka_producer.py
-    ├── exceptions.py        ← service-specific exceptions
-    ├── logger.py            ← MongoDB ErrorLogger instance
+    ├── exceptions.py
     └── events/
+        ├── __init__.py
         ├── router.py
+        ├── schemas.py
         ├── service.py
-        ├── cache.py         ← Redis rate-limit operations
-        └── schemas.py
+        └── cache.py         ← Redis rate-limit operations
 ```
 
 ### Endpoint
@@ -128,20 +128,25 @@ This component follows all conventions in [`docs/phases/shared-patterns.md`](sha
 services/heatmap-aggregator/
 ├── Dockerfile
 ├── requirements.txt
+├── alembic.ini
+├── migrations/
+│   ├── env.py
+│   └── versions/
 └── app/
     ├── main.py
     ├── config.py
     ├── database.py
     ├── redis_client.py
-    ├── consumer.py         ← Kafka consumer loop
-    ├── aggregator.py       ← segment bucketing + Redis writes
-    ├── flusher.py          ← hourly PostgreSQL flush
-    ├── viral_detector.py   ← anomaly detection
-    ├── exceptions.py       ← service-specific exceptions
-    ├── logger.py           ← MongoDB ErrorLogger instance
+    ├── kafka_consumer.py    ← Consumes: viewer-interaction-events
+    ├── kafka_producer.py    ← Produces: heatmap-aggregated, heatmap-alerts
+    ├── models.py            ← [L3] ViewerEvent, HeatmapSnapshot SQLAlchemy models
+    ├── exceptions.py
     └── heatmap/
-        ├── repository.py   ← DB queries (viewer_events, snapshots)
-        └── cache.py        ← Redis segment operations
+        ├── __init__.py
+        ├── schemas.py       ← [L1] SegmentCount, SnapshotPayload
+        ├── service.py       ← [L2] bucket_event(), detect_viral(), flush_snapshots()
+        ├── repository.py    ← [L3] DB queries (viewer_events, snapshots)
+        └── cache.py         ← [L3] Redis segment operations
 ```
 
 ### Segment Bucketing Logic
@@ -322,19 +327,25 @@ This component follows all conventions in [`docs/phases/shared-patterns.md`](sha
 services/heatmap-api/
 ├── Dockerfile
 ├── requirements.txt
+├── alembic.ini
+├── migrations/
+│   ├── env.py
+│   └── versions/
 └── app/
     ├── main.py
     ├── config.py
     ├── database.py
     ├── redis_client.py
-    ├── consumer.py         ← Kafka consumer for heatmap-aggregated (SSE trigger)
-    ├── exceptions.py       ← service-specific exceptions
-    ├── logger.py           ← MongoDB ErrorLogger instance
+    ├── kafka_consumer.py    ← Consumes: heatmap-aggregated (SSE trigger)
+    ├── models.py            ← [L3] HeatmapSnapshot SQLAlchemy model
+    ├── exceptions.py
     └── heatmap/
+        ├── __init__.py
         ├── router.py
-        ├── service.py
-        ├── repository.py   ← DB queries (fallback reads from snapshots)
-        └── cache.py        ← Redis segment reads + summary key
+        ├── schemas.py       ← [L1] HeatmapResponse, SegmentDetail, AlertPayload
+        ├── service.py       ← [L2] get_heatmap(), stream_alerts()
+        ├── repository.py    ← [L3] DB queries (fallback reads from snapshots)
+        └── cache.py         ← [L3] Redis segment reads + summary key
 ```
 
 ### Endpoints
