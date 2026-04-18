@@ -19,12 +19,14 @@ cp .env.example .env
 ./start.sh down
 ```
 
-**Endpoints** (via NGINX on port 80):
+**API Endpoints** (via NGINX on port 80):
 
-| Route | Service | Docs |
-|-------|---------|------|
+| Route | Service | Swagger Docs |
+|-------|---------|--------------|
 | `/auth/*`, `/users/*` | user-service | http://localhost:8001/docs |
 | `/videos/*` | video-service | http://localhost:8002/docs |
+| `/stream/*` | streaming-service | http://localhost:8003/docs |
+| `/summary/*` | summarization-service | http://localhost:8004/docs |
 
 ---
 
@@ -32,15 +34,23 @@ cp .env.example .env
 
 ```
 Browser → NGINX (port 80) → Microservices → Data Stores
-                                ↕
-                          Apache Kafka
+                                  ↕
+                            Apache Kafka
+                                  ↕
+                     Background Workers (encoding, thumbnail)
 ```
 
-- **user-service** (8001) — Registration, login, session auth (Redis)
-- **video-service** (8002) — Video upload, metadata CRUD, Kafka events
-- **shared/** — Common exceptions, schemas, auth dependencies
+| Service | Port | Responsibility |
+|---------|------|----------------|
+| user-service | 8001 | Registration, login, session auth (Redis) |
+| video-service | 8002 | Video upload, metadata CRUD, Kafka events |
+| encoding-worker | — | Consumes `video.uploaded` → FFmpeg HLS transcode → publishes `video.processed` |
+| thumbnail-worker | — | Consumes `video.uploaded` → FFmpeg thumbnail extraction |
+| streaming-service | 8003 | HLS manifest & segment delivery |
+| summarization-service | 8004 | Consumes `video.processed` → Whisper transcription → DistilBART summary |
+| shared/ | — | Common exceptions, response schemas, auth dependencies |
 
-**Data Stores:** PostgreSQL (relational), Redis (sessions/cache), Kafka (async events)
+**Data Stores:** PostgreSQL (relational data), Redis (sessions & cache), MongoDB (worker error logs), Kafka (async event bus)
 
 ---
 
@@ -53,15 +63,21 @@ project/
 ├── start.sh
 ├── nginx/nginx.conf
 ├── services/
-│   ├── shared/            ← common Python utilities
-│   ├── user-service/      ← :8001 (auth, users)
-│   └── video-service/     ← :8002 (upload, metadata)
+│   ├── shared/                  ← common Python utilities (exceptions, schemas, deps)
+│   ├── user-service/            ← :8001 (auth, users)
+│   ├── video-service/           ← :8002 (upload, metadata)
+│   ├── encoding-worker/         ← Kafka consumer → FFmpeg HLS
+│   ├── thumbnail-worker/        ← Kafka consumer → FFmpeg thumbnail
+│   ├── streaming-service/       ← :8003 (HLS delivery)
+│   └── summarization-service/   ← :8004 (Whisper + BART)
 └── docs/
-    ├── ARCHITECTURE.md    ← system design & LLD
-    ├── DATABASE.md        ← schemas (PostgreSQL, Redis, Kafka)
-    ├── HEATMAP.md         ← unique feature spec
-    ├── ROADMAP.md         ← all build phases & status
-    └── diagrams/          ← architecture diagrams (PNG)
+    ├── ARCHITECTURE.md          ← system design & LLD
+    ├── DATABASE.md              ← schemas (PostgreSQL, Redis, Kafka)
+    ├── HEATMAP.md               ← unique feature spec
+    ├── ROADMAP.md               ← all build phases & status
+    ├── diagrams/                ← architecture diagrams (PNG)
+    ├── service-working/         ← per-service working guides
+    └── test/                    ← per-service testing guides
 ```
 
 ---
@@ -84,9 +100,9 @@ project/
 | 1 | Infrastructure (Docker, Kafka, NGINX) | ✅ Done |
 | 2 | User Service | ✅ Done |
 | 3 | Video Service | ✅ Done |
-| 4 | Encoding & Thumbnail Workers | 🔲 Not started |
-| 5 | Streaming Service | 🔲 Not started |
-| 6 | AI Summarization | 🔲 Not started |
+| 4 | Encoding & Thumbnail Workers | ✅ Done |
+| 5 | Streaming Service | ✅ Done |
+| 6 | AI Summarization | ✅ Done |
 | 7 | Trending & Recommendations | 🔲 Not started |
 | 8 | Heatmap Engine | 🔲 Not started |
 | 9 | Frontend (React) | 🔲 Not started |
@@ -99,7 +115,91 @@ project/
 | Layer | Technology |
 |-------|------------|
 | Backend | Python 3.11, FastAPI, SQLAlchemy (async), Alembic |
-| Data | PostgreSQL 15, Redis 7, Apache Kafka |
+| Workers | aiokafka, FFmpeg, OpenAI Whisper, DistilBART |
+| Data | PostgreSQL 15, Redis 7, MongoDB 6, Apache Kafka |
 | Gateway | NGINX |
 | Infra | Docker Compose |
 | Frontend (planned) | React 18, Vite, hls.js |
+
+---
+
+## 🧩 Running Services Individually
+
+Use these commands when you want to start, rebuild, or debug a specific service without restarting the full stack.
+
+### Step 1 — Start Infrastructure (required first)
+
+```bash
+# Start all infrastructure services
+docker compose up -d postgres redis zookeeper kafka mongo nginx
+
+# Wait for Kafka to be ready, then create topics
+docker compose up kafka-setup
+```
+
+### Step 2 — Start Individual Services
+
+```bash
+# User Service (auth, sessions)
+docker compose up -d user-service
+
+# Video Service (upload, metadata)
+docker compose up -d video-service
+
+# Encoding Worker (FFmpeg HLS transcode) — needs Kafka topics
+docker compose up -d encoding-worker
+
+# Thumbnail Worker (FFmpeg thumbnail) — needs Kafka topics
+docker compose up -d thumbnail-worker
+
+# Streaming Service (HLS playback)
+docker compose up -d streaming-service
+
+# Summarization Service (Whisper + BART) — needs Kafka topics
+docker compose up -d summarization-service
+```
+
+### Rebuild a Single Service (after code changes)
+
+```bash
+docker compose up -d --build <service-name>
+
+# Examples:
+docker compose up -d --build user-service
+docker compose up -d --build video-service
+docker compose up -d --build encoding-worker
+```
+
+### View Logs for a Specific Service
+
+```bash
+docker compose logs -f user-service
+docker compose logs -f video-service
+docker compose logs -f encoding-worker
+docker compose logs -f thumbnail-worker
+docker compose logs -f streaming-service
+docker compose logs -f summarization-service
+```
+
+### Check Status
+
+```bash
+docker compose ps
+```
+
+### Stop a Single Service
+
+```bash
+docker compose stop <service-name>
+
+# Restart without rebuild:
+docker compose restart <service-name>
+```
+
+### Minimal Stack for API Testing (no workers/AI)
+
+```bash
+docker compose up -d postgres redis zookeeper kafka mongo nginx
+docker compose up kafka-setup
+docker compose up -d user-service video-service streaming-service
+```
