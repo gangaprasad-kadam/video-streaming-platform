@@ -1,6 +1,6 @@
 services:
   # ─────────────────────────────────────────────
-  # DATABASE LAYER
+  # DATABASE & CACHE
   # ─────────────────────────────────────────────
 
   postgres:
@@ -19,17 +19,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  mongodb:
-    image: mongo:6
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
-    volumes:
-      - mongo_data:/data/db
-    ports:
-      - "27018:27017"
 
   redis:
     image: redis:7-alpine
@@ -77,7 +66,6 @@ services:
       retries: 10
       start_period: 30s
 
-  # One-shot container: creates all Kafka topics after broker is healthy
   kafka-setup:
     image: confluentinc/cp-kafka:7.5.0
     depends_on:
@@ -86,12 +74,9 @@ services:
     restart: on-failure
     entrypoint: ["/bin/sh", "-c"]
     command: >
-      "kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic video.uploaded             --partitions 3  --replication-factor 1 &&
-       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic video.processed            --partitions 3  --replication-factor 1 &&
-       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic viewer-interaction-events  --partitions 12 --replication-factor 1 &&
-       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic heatmap-aggregated         --partitions 6  --replication-factor 1 &&
-       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic heatmap-alerts             --partitions 3  --replication-factor 1 &&
-       echo 'All 5 Kafka topics created successfully'"
+      "kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic video.uploaded   --partitions 3 --replication-factor 1 &&
+       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic video.processed  --partitions 3 --replication-factor 1 &&
+       echo 'Kafka topics created successfully'"
 
   # ─────────────────────────────────────────────
   # API GATEWAY
@@ -104,12 +89,12 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - media_data:/media:ro # serves uploaded thumbnails
+      - media_data:/media:ro
     depends_on:
       - kafka
 
   # ─────────────────────────────────────────────
-  # MICROSERVICES  (added phase by phase)
+  # MICROSERVICES
   # ─────────────────────────────────────────────
 
   user-service:
@@ -129,7 +114,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    profiles: ["services"] # only start with --profile services
 
   video-service:
     build: ./services/video-service
@@ -153,153 +137,6 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-    profiles: ["services"]
-
-  encoding-worker:
-    build: ./services/encoding-worker
-    restart: unless-stopped
-    env_file: .env
-    volumes:
-      - ./services/shared:/app/shared:ro
-      - media_data:/media
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    profiles: ["services"]
-
-  thumbnail-worker:
-    build: ./services/thumbnail-worker
-    restart: unless-stopped
-    env_file: .env
-    volumes:
-      - ./services/shared:/app/shared:ro
-      - media_data:/media
-    depends_on:
-      postgres:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    profiles: ["services"]
-
-  streaming-service:
-    build: ./services/streaming-service
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      PORT: ${STREAMING_SERVICE_PORT}
-    volumes:
-      - ./services/shared:/app/shared:ro
-      - media_data:/media:ro
-    ports:
-      - "${STREAMING_SERVICE_PORT}:${STREAMING_SERVICE_PORT}"
-    depends_on:
-      redis:
-        condition: service_healthy
-    profiles: ["services"]
-
-  summarization-service:
-    build: ./services/summarization-service
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      PORT: ${SUMMARIZATION_SERVICE_PORT}
-    volumes:
-      - ./services/shared:/app/shared:ro
-      - media_data:/media:ro
-      - model_cache:/root/.cache
-    ports:
-      - "${SUMMARIZATION_SERVICE_PORT}:${SUMMARIZATION_SERVICE_PORT}"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    profiles: ["services"]
-
-  trending-service:
-    build: ./services/trending-service
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      PORT: ${TRENDING_SERVICE_PORT}
-    volumes:
-      - ./services/shared:/app/shared:ro
-    ports:
-      - "${TRENDING_SERVICE_PORT}:${TRENDING_SERVICE_PORT}"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    profiles: ["services"]
-
-  event-ingestion:
-    build: ./services/event-ingestion
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      PORT: ${EVENT_INGESTION_PORT}
-    volumes:
-      - ./services/shared:/app/shared:ro
-    ports:
-      - "${EVENT_INGESTION_PORT}:${EVENT_INGESTION_PORT}"
-    depends_on:
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    profiles: ["services"]
-
-  heatmap-aggregator:
-    build: ./services/heatmap-aggregator
-    restart: unless-stopped
-    env_file: .env
-    volumes:
-      - ./services/shared:/app/shared:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    profiles: ["services"]
-
-  heatmap-api:
-    build: ./services/heatmap-api
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      PORT: ${HEATMAP_API_PORT}
-    volumes:
-      - ./services/shared:/app/shared:ro
-    ports:
-      - "${HEATMAP_API_PORT}:${HEATMAP_API_PORT}"
-    depends_on:
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    profiles: ["services"]
-
-  # ─────────────────────────────────────────────
-  # FRONTEND  (Phase 9)
-  # ─────────────────────────────────────────────
-
-  frontend:
-    build: ./frontend
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    depends_on:
-      - nginx
-    profiles: ["frontend"]
 
 # ─────────────────────────────────────────────
 # NAMED VOLUMES
@@ -307,6 +144,4 @@ services:
 
 volumes:
   postgres_data:
-  mongo_data:
-  media_data: # shared between video-service, encoding-worker, streaming-service
-  model_cache: # Whisper + BART model files (avoids re-download on restart)
+  media_data:
