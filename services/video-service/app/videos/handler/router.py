@@ -5,9 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth_utils import get_current_user_id
 from app.database import get_db
+from app.exceptions import VideoNotFoundError
 from app.redis_client import get_redis
-from app.videos import service as video_service
-from app.videos.schemas import (
+from app.videos.dao.repository import get_by_id
+from app.videos.utils import service as video_service
+from app.videos.utils.schemas import (
     InternalStatusUpdateRequest,
     VideoResponse,
     VideoStatusResponse,
@@ -72,8 +74,6 @@ async def patch_video(
 
 @router.get("/{video_id}/status", response_model=SuccessResponse[VideoStatusResponse])
 async def get_status(video_id: str, db: AsyncSession = Depends(get_db)):
-    from app.videos.repository import get_by_id
-    from app.exceptions import VideoNotFoundError
     video = await get_by_id(db, video_id)
     if not video:
         raise VideoNotFoundError(video_id)

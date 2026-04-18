@@ -70,6 +70,25 @@ async def update_video(db: AsyncSession, video: Video, title: str | None, descri
     return video
 
 
+async def update_video_fields(
+    db: AsyncSession,
+    video: Video,
+    hls_path: str | None = None,
+    thumbnail_path: str | None = None,
+    duration: float | None = None,
+) -> Video:
+    """Update metadata fields without changing status (used for terminal-state partial updates)."""
+    if hls_path is not None:
+        video.hls_path = hls_path
+    if thumbnail_path is not None:
+        video.thumbnail_path = thumbnail_path
+    if duration is not None:
+        video.duration = duration
+    await db.commit()
+    await db.refresh(video)
+    return video
+
+
 async def update_status(
     db: AsyncSession,
     video: Video,

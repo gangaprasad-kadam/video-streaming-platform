@@ -4,10 +4,10 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.auth.router import router as auth_router
+from app.auth.handler.router import router as auth_router
 from app.database import close_db, connect_db
 from app.redis_client import close_redis, connect_redis
-from app.users.router import router as users_router
+from app.users.handler.router import router as users_router
 from shared.exceptions import AppException
 
 

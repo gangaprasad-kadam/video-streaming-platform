@@ -2,9 +2,9 @@ import bcrypt
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
-from app.auth import repository as repo
-from app.auth.cache import delete_session, set_session
-from app.auth.schemas import LoginRequest, RegisterRequest
+from app.auth.dao import repository as repo
+from app.auth.utils.cache import delete_session, set_session
+from app.auth.utils.schemas import LoginRequest, RegisterRequest
 from app.exceptions import (
     EmailConflictError,
     InvalidCredentialsError,

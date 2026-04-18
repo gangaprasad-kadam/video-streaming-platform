@@ -13,7 +13,7 @@
 | 1 | Infrastructure & Skeleton | ✅ Done | — (Docker, Kafka, Redis, PostgreSQL, NGINX) |
 | 2 | User Service | ✅ Done | `user-service` |
 | 3 | Video Service | ✅ Done | `video-service` |
-| 4 | Processing Pipeline | 🔲 Not Started | `encoding-worker`, `thumbnail-worker` |
+| 4 | Processing Pipeline | ✅ Done | `encoding-worker`, `thumbnail-worker` |
 | 5 | Streaming Service | 🔲 Not Started | `streaming-service` |
 | 6 | AI Summarization | 🔲 Not Started | `summarization-service` |
 | 7 | Trending & Recommendations | 🔲 Not Started | `trending-service` |
@@ -21,7 +21,7 @@
 | 9 | Frontend | 🔲 Not Started | `frontend` |
 | 10 | Integration & Docs | 🔲 Not Started | — (E2E testing, final compose) |
 
-**Progress: 3 / 10 phases complete**
+**Progress: 4 / 10 phases complete**
 
 ---
 

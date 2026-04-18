@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions import UserNotFoundError
 from app.models import User
-from app.users import repository as repo
+from app.users.dao import repository as repo
 
 
 async def get_me(db: AsyncSession, user_id: str) -> User:

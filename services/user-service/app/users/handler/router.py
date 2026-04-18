@@ -3,11 +3,11 @@ from fastapi.requests import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
-from app.auth.cache import get_session, refresh_session
+from app.auth.utils.cache import get_session, refresh_session
 from app.database import get_db
 from app.redis_client import get_redis
-from app.users import service as users_service
-from app.users.schemas import UserProfileResponse
+from app.users.utils import service as users_service
+from app.users.utils.schemas import UserProfileResponse
 from shared.exceptions import AuthError
 from shared.schemas import SuccessResponse
 

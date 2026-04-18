@@ -3,9 +3,9 @@ from fastapi.requests import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
-from app.auth import service as auth_service
-from app.auth.cache import get_session, refresh_session
-from app.auth.schemas import LoginRequest, RegisterRequest, UserResponse
+from app.auth.utils import service as auth_service
+from app.auth.utils.cache import get_session, refresh_session
+from app.auth.utils.schemas import LoginRequest, RegisterRequest, UserResponse
 from app.database import get_db
 from app.exceptions import InvalidCredentialsError
 from app.redis_client import get_redis

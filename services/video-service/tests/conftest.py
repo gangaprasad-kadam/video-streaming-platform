@@ -81,7 +81,7 @@ async def client(redis_mock, kafka_mock, tmp_path):
 
     # Point media root to a temp dir so file writes don't fail
     with patch("app.config.settings.MEDIA_ROOT", str(tmp_path)):
-        with patch("app.videos.service.settings.MEDIA_ROOT", str(tmp_path)):
+        with patch("app.videos.utils.service.settings.MEDIA_ROOT", str(tmp_path)):
             async with AsyncClient(
                 transport=ASGITransport(app=app), base_url="http://test"
             ) as ac:

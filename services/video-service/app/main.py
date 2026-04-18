@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from app.database import close_db, connect_db
 from app.kafka_producer import start_producer, stop_producer
 from app.redis_client import close_redis, connect_redis
-from app.videos.router import internal_router, router as videos_router
+from app.videos.handler.router import internal_router, router as videos_router
 from shared.exceptions import AppException
 
 

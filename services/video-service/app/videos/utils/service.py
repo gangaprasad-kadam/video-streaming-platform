@@ -1,4 +1,5 @@
 import os
+import uuid
 
 import aiofiles
 from fastapi import UploadFile
@@ -9,10 +10,10 @@ from app import kafka_producer
 from app.config import settings
 from app.exceptions import VideoForbiddenError, VideoNotFoundError
 from app.models import Video
-from app.videos import repository as repo
-from app.videos.cache import cache_video_meta, get_cached_video, invalidate_video_cache
-from app.videos.repository import VideoPage
-from app.videos.schemas import VideoResponse
+from app.videos.dao import repository as repo
+from app.videos.utils.cache import cache_video_meta, get_cached_video, invalidate_video_cache
+from app.videos.dao.repository import VideoPage
+from app.videos.utils.schemas import VideoResponse
 
 
 def _to_response(video: Video) -> VideoResponse:
@@ -40,7 +41,7 @@ async def upload_video(
     description: str | None,
     creator_id: str,
 ) -> Video:
-    video_id_placeholder = __import__("uuid").uuid4()
+    video_id_placeholder = uuid.uuid4()
     ext = os.path.splitext(file.filename or "video.mp4")[1] or ".mp4"
     file_path = os.path.join(settings.MEDIA_ROOT, "uploads", f"{video_id_placeholder}{ext}")
 
@@ -133,8 +134,11 @@ async def update_status(
     if not video:
         raise VideoNotFoundError(video_id)
 
-    # Idempotency: skip if already in terminal state
+    # In terminal state: update metadata fields without changing status
     if video.status.value in ("ready", "failed"):
+        if any(v is not None for v in (hls_path, thumbnail_path, duration)):
+            video = await repo.update_video_fields(db, video, hls_path=hls_path, thumbnail_path=thumbnail_path, duration=duration)
+            await invalidate_video_cache(redis, video_id)
         return _to_response(video)
 
     video = await repo.update_status(db, video, new_status, hls_path, thumbnail_path, duration)
