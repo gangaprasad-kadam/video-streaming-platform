@@ -7,6 +7,16 @@ _summarizer = None
 
 
 def _load_summarizer(model_name: str):
+    """Load (or return the cached) HuggingFace summarization pipeline.
+
+    Uses a module-level singleton so the model is only loaded once per process.
+
+    Args:
+        model_name: HuggingFace model identifier (e.g. ``"sshleifer/distilbart-cnn-12-6"``).
+
+    Returns:
+        The loaded HuggingFace ``pipeline`` instance for summarization.
+    """
     from transformers import pipeline
     global _summarizer
     if _summarizer is None:
@@ -16,7 +26,18 @@ def _load_summarizer(model_name: str):
 
 
 async def summarize(text: str, model_name: str) -> str:
-    """Run BART summarization in a thread executor (CPU-heavy)."""
+    """Summarize text using a BART model, offloaded to a thread executor.
+
+    The input is truncated to 1000 characters to stay within the model's
+    token limit. Returns an empty string for blank input.
+
+    Args:
+        text: Full transcript text to summarize.
+        model_name: HuggingFace model identifier for the BART summarizer.
+
+    Returns:
+        A condensed summary string, or ``""`` if the input was blank.
+    """
     if not text.strip():
         return ""
 

@@ -31,15 +31,23 @@ SESSION_TTL_SECONDS = int(os.getenv("SESSION_TTL_SECONDS", "86400"))
 
 
 async def get_db() -> AsyncGenerator:
-    """
-    Yield a SQLAlchemy AsyncSession.
-    The calling service must expose AsyncSessionLocal from its database.py.
-    This dependency is meant to be overridden per service via FastAPI's dependency_overrides
-    or by importing the service's own get_db after setup.
+    """Yield a SQLAlchemy ``AsyncSession`` for the calling service.
 
-    Usage in a service's main.py:
-        from app.database import get_db   # service-local version
-        app.dependency_overrides[shared_get_db] = get_db
+    This is a placeholder that each service replaces via
+    ``app.dependency_overrides`` or by importing its own ``get_db`` after
+    setting up ``AsyncSessionLocal`` in ``database.py``.
+
+    Yields:
+        AsyncSession: An open database session scoped to the request.
+
+    Raises:
+        NotImplementedError: Always — until the service overrides this dependency.
+
+    Example:
+        In a service's ``main.py``::
+
+            from app.database import get_db
+            app.dependency_overrides[shared_get_db] = get_db
     """
     # Placeholder — each service overrides this with its own session factory
     raise NotImplementedError("get_db must be overridden by the service's database.py")
@@ -49,9 +57,16 @@ async def get_db() -> AsyncGenerator:
 
 
 async def get_redis() -> AsyncGenerator:
-    """
-    Yield a Redis connection.
-    Each service overrides this with its own redis_client singleton.
+    """Yield a Redis connection for the calling service.
+
+    Each service replaces this via ``app.dependency_overrides`` using its own
+    ``redis_client`` singleton from ``redis_client.py``.
+
+    Yields:
+        Redis: An async Redis client instance.
+
+    Raises:
+        NotImplementedError: Always — until the service overrides this dependency.
     """
     raise NotImplementedError("get_redis must be overridden by the service's redis_client.py")
 
@@ -60,16 +75,21 @@ async def get_current_user(
     request: Request,
     redis: Redis = Depends(get_redis),
 ) -> str:
-    """
-    Authenticate request via session cookie.
+    """Authenticate the incoming request using the session cookie.
 
-    1. Read 'session_id' HttpOnly cookie
-    2. Look up Redis: session:{session_id} → user_id
-    3. Refresh sliding TTL
-    4. Return user_id (str UUID)
+    Reads the ``session_id`` HttpOnly cookie, validates it against Redis, and
+    refreshes the sliding TTL so active users stay logged in.
+
+    Args:
+        request: The incoming FastAPI ``Request`` object, used to read cookies.
+        redis: An async Redis client injected by ``get_redis``.
+
+    Returns:
+        The authenticated user's UUID as a plain string.
 
     Raises:
-        AuthError: if cookie is missing or session is expired/invalid
+        AuthError: If the ``session_id`` cookie is absent, or if the session
+            has expired or does not exist in Redis.
     """
     session_id = request.cookies.get("session_id")
     if not session_id:

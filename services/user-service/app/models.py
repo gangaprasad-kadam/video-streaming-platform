@@ -8,6 +8,11 @@ from app.database import Base
 
 
 class User(Base):
+    """ORM model for the ``users`` table.
+
+    Stores credentials and profile data for registered users.
+    """
+
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(

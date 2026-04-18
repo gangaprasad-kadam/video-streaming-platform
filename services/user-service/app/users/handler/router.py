@@ -44,6 +44,19 @@ async def get_me(
     user_id: str = Depends(_get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
+    """Return the authenticated user's profile.
+
+    Args:
+        user_id: Authenticated user's ID, resolved from the session cookie.
+        db: Async database session (injected).
+
+    Returns:
+        SuccessResponse containing the user's public profile fields.
+
+    Raises:
+        AuthError: If the session cookie is missing or expired.
+        UserNotFoundError: If the user record no longer exists.
+    """
     user = await users_service.get_me(db, user_id)
     return SuccessResponse(
         data=UserProfileResponse(

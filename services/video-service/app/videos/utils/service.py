@@ -165,6 +165,25 @@ async def patch_video(
     title: str | None,
     description: str | None,
 ) -> VideoResponse:
+    """Update a video's title and/or description (creator only).
+
+    Verifies ownership before writing, then invalidates the Redis cache.
+
+    Args:
+        db: Async database session.
+        redis: Async Redis client.
+        video_id: UUID string of the video to update.
+        requester_id: UUID string of the user making the request.
+        title: New title, or ``None`` to leave unchanged.
+        description: New description, or ``None`` to leave unchanged.
+
+    Returns:
+        Updated VideoResponse.
+
+    Raises:
+        VideoNotFoundError: If the video does not exist.
+        VideoForbiddenError: If the requester is not the creator.
+    """
     video = await repo.get_by_id(db, video_id)
     if not video:
         raise VideoNotFoundError(video_id)
@@ -185,6 +204,27 @@ async def update_status(
     thumbnail_path: str | None = None,
     duration: float | None = None,
 ) -> VideoResponse:
+    """Advance a video's processing status and update optional metadata.
+
+    If the video is already in a terminal state (``ready`` or ``failed``),
+    only the metadata fields are updated without changing the status.
+
+    Args:
+        db: Async database session.
+        redis: Async Redis client (cache is invalidated on any write).
+        video_id: UUID string of the video.
+        new_status: Target status string (``uploading``, ``processing``,
+            ``ready``, or ``failed``).
+        hls_path: Path to the HLS playlist, if available.
+        thumbnail_path: Path to the generated thumbnail, if available.
+        duration: Video duration in seconds, if known.
+
+    Returns:
+        Updated VideoResponse.
+
+    Raises:
+        VideoNotFoundError: If the video does not exist.
+    """
     video = await repo.get_by_id(db, video_id)
     if not video:
         raise VideoNotFoundError(video_id)

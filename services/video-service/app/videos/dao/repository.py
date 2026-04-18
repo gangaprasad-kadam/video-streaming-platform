@@ -9,6 +9,13 @@ from app.models import Video, VideoStatus
 
 @dataclass
 class VideoPage:
+    """Result container for paginated video queries.
+
+    Attributes:
+        items: List of Video ORM instances for the current page.
+        total: Total number of matching videos across all pages.
+    """
+
     items: list[Video]
     total: int
 
@@ -22,6 +29,20 @@ async def create_video(
     file_size_bytes: int | None,
     mime_type: str | None,
 ) -> Video:
+    """Insert a new Video row with status ``uploading``.
+
+    Args:
+        db: Async database session.
+        title: Video title.
+        description: Optional description.
+        creator_id: UUID string of the creator.
+        file_path: Filesystem path where the raw upload is stored.
+        file_size_bytes: Upload size in bytes, or ``None`` if unknown.
+        mime_type: MIME type of the uploaded file, or ``None`` if unknown.
+
+    Returns:
+        The newly persisted Video ORM instance.
+    """
     video = Video(
         title=title,
         description=description,
@@ -38,6 +59,15 @@ async def create_video(
 
 
 async def get_by_id(db: AsyncSession, video_id: str) -> Video | None:
+    """Fetch a single Video by its UUID.
+
+    Args:
+        db: Async database session.
+        video_id: UUID string of the video.
+
+    Returns:
+        Matching Video ORM instance, or ``None`` if not found.
+    """
     result = await db.execute(select(Video).where(Video.id == uuid.UUID(video_id)))
     return result.scalar_one_or_none()
 
@@ -45,6 +75,17 @@ async def get_by_id(db: AsyncSession, video_id: str) -> Video | None:
 async def list_videos(
     db: AsyncSession, page: int, limit: int, creator_id: str | None = None
 ) -> VideoPage:
+    """Return a page of Video rows ordered by creation date (newest first).
+
+    Args:
+        db: Async database session.
+        page: 1-based page number.
+        limit: Maximum number of rows to return.
+        creator_id: Optional UUID string to filter by a specific creator.
+
+    Returns:
+        VideoPage with the matching items and the total unfiltered count.
+    """
     query = select(Video)
     count_query = select(func.count()).select_from(Video)
     if creator_id:
@@ -61,6 +102,20 @@ async def list_videos(
 
 
 async def update_video(db: AsyncSession, video: Video, title: str | None, description: str | None) -> Video:
+    """Update a video's title and/or description in place.
+
+    Only non-``None`` arguments are applied, so callers can pass ``None``
+    to leave a field unchanged.
+
+    Args:
+        db: Async database session.
+        video: Video ORM instance to modify.
+        title: New title, or ``None`` to keep the existing value.
+        description: New description, or ``None`` to keep the existing value.
+
+    Returns:
+        The updated and refreshed Video ORM instance.
+    """
     if title is not None:
         video.title = title
     if description is not None:
@@ -97,6 +152,19 @@ async def update_status(
     thumbnail_path: str | None = None,
     duration: float | None = None,
 ) -> Video:
+    """Update a video's status and optionally set processing-result fields.
+
+    Args:
+        db: Async database session.
+        video: Video ORM instance to modify.
+        new_status: Target status string (must be a valid ``VideoStatus`` value).
+        hls_path: Path to the generated HLS playlist, if available.
+        thumbnail_path: Path to the generated thumbnail, if available.
+        duration: Video duration in seconds, if known.
+
+    Returns:
+        The updated and refreshed Video ORM instance.
+    """
     video.status = VideoStatus(new_status)
     if hls_path is not None:
         video.hls_path = hls_path

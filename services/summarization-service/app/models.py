@@ -8,6 +8,8 @@ from app.database import Base
 
 
 class VideoSummary(Base):
+    """ORM model representing a summary record in the ``video_summaries`` table."""
+
     __tablename__ = "video_summaries"
 
     id: Mapped[uuid.UUID] = mapped_column(

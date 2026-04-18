@@ -8,6 +8,16 @@ _model = None
 
 
 def _load_model(model_name: str):
+    """Load (or return the cached) Whisper model.
+
+    Uses a module-level singleton so the model is only loaded once per process.
+
+    Args:
+        model_name: Whisper model size identifier (e.g. ``"base"``, ``"small"``).
+
+    Returns:
+        The loaded Whisper model instance.
+    """
     import whisper
     global _model
     if _model is None:
@@ -17,7 +27,18 @@ def _load_model(model_name: str):
 
 
 async def extract_audio(video_id: str, hls_path: str) -> str:
-    """Extract audio from HLS manifest using ffmpeg. Returns WAV file path."""
+    """Extract a mono 16 kHz WAV audio track from an HLS stream using ffmpeg.
+
+    Args:
+        video_id: UUID string of the video (used to name the output file).
+        hls_path: Path to the HLS master manifest (``.m3u8``).
+
+    Returns:
+        Absolute path to the extracted WAV file.
+
+    Raises:
+        RuntimeError: If ffmpeg exits with a non-zero return code.
+    """
     audio_path = f"/tmp/audio_{video_id}.wav"
     cmd = [
         "ffmpeg", "-y",
@@ -40,7 +61,19 @@ async def extract_audio(video_id: str, hls_path: str) -> str:
 
 
 async def transcribe(audio_path: str, model_name: str) -> dict:
-    """Run Whisper transcription in a thread executor (CPU-heavy)."""
+    """Transcribe a WAV file using Whisper, offloaded to a thread executor.
+
+    The Whisper inference is CPU-heavy, so it runs in a thread pool to avoid
+    blocking the event loop.
+
+    Args:
+        audio_path: Filesystem path to the WAV audio file.
+        model_name: Whisper model size identifier (e.g. ``"base"``).
+
+    Returns:
+        Whisper result dict containing ``"text"`` (full transcript) and
+        ``"segments"`` (per-segment timing and confidence data).
+    """
     loop = asyncio.get_event_loop()
 
     def _run():
@@ -52,7 +85,19 @@ async def transcribe(audio_path: str, model_name: str) -> dict:
 
 
 def extract_key_moments(segments: list) -> list[dict]:
-    """Extract up to 10 meaningful key moments from Whisper segments."""
+    """Pick up to 10 meaningful key moments from Whisper segment data.
+
+    A segment is included when its ``no_speech_prob`` is below 0.4 and its
+    text is longer than 15 characters, filtering out silent or very short clips.
+
+    Args:
+        segments: List of Whisper segment dicts, each with ``start``,
+            ``text``, and ``no_speech_prob`` keys.
+
+    Returns:
+        List of up to 10 dicts, each with ``timestamp`` (float, seconds)
+        and ``label`` (str, first 120 chars of segment text).
+    """
     key_moments = []
     for seg in segments:
         text = seg.get("text", "").strip()
@@ -66,7 +111,11 @@ def extract_key_moments(segments: list) -> list[dict]:
 
 
 def cleanup_audio(audio_path: str) -> None:
-    """Remove temporary audio file."""
+    """Delete a temporary audio file, silently ignoring missing-file errors.
+
+    Args:
+        audio_path: Filesystem path to the WAV file to remove.
+    """
     try:
         os.remove(audio_path)
     except OSError:

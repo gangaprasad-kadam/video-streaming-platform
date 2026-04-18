@@ -13,6 +13,15 @@ logger = logging.getLogger(__name__)
 
 
 async def run_consumer(stop_event: asyncio.Event) -> None:
+    """Start the Kafka consumer and process incoming ``video.uploaded`` events.
+
+    Consumes messages from the configured topic until ``stop_event`` is set.
+    Each message is dispatched to ``_handle_event`` for thumbnail extraction.
+
+    Args:
+        stop_event: When set, causes the consumer loop to exit cleanly after
+            the current message is processed.
+    """
     consumer = AIOKafkaConsumer(
         settings.KAFKA_TOPIC_CONSUME,
         bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
@@ -35,6 +44,16 @@ async def run_consumer(stop_event: asyncio.Event) -> None:
 
 
 async def _handle_event(event: dict) -> None:
+    """Process a single ``video.uploaded`` Kafka event by extracting a thumbnail.
+
+    Validates the payload, runs thumbnail extraction via ffmpeg, notifies the
+    video-service of the result, and logs each stage to MongoDB. Errors are
+    caught and logged without re-raising so the consumer keeps running.
+
+    Args:
+        event: Deserialized Kafka message payload. Expected keys: ``videoId``
+            and ``filePath``.
+    """
     video_id = event.get("videoId")
     file_path = event.get("filePath")
 

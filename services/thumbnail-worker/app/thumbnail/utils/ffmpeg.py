@@ -12,7 +12,20 @@ async def extract_thumbnail(
     input_path: str,
     timestamp: str = "00:00:05",
 ) -> str:
-    """Extract a single JPEG frame at `timestamp` from the input video."""
+    """Extract a single JPEG frame from a video file using ffmpeg.
+
+    Args:
+        video_id: Used to name the output file as ``<video_id>.jpg``.
+        input_path: Absolute path to the source video file.
+        timestamp: Timecode in ``HH:MM:SS`` format at which to capture the
+            frame. Defaults to ``"00:00:05"``.
+
+    Returns:
+        Absolute path to the saved JPEG thumbnail.
+
+    Raises:
+        RuntimeError: If the ffmpeg subprocess exits with a non-zero code.
+    """
     output_dir = os.path.join(settings.MEDIA_ROOT, "thumbnails")
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, f"{video_id}.jpg")

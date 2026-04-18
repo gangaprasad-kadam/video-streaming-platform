@@ -17,6 +17,18 @@ async def get_summary(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
-    """Return AI-generated transcript, summary, and key moments for a video."""
+    """Return AI-generated transcript, summary, and key moments for a video.
+
+    Checks Redis first (1-hour TTL) before falling back to PostgreSQL.
+    Returns 404 if no summary has been generated yet.
+
+    Args:
+        video_id: UUID string of the video.
+        db: Injected async database session.
+        redis: Injected Redis client.
+
+    Returns:
+        SuccessResponse wrapping a SummaryResponse payload.
+    """
     result = await summary_service.get_summary(db, redis, video_id)
     return SuccessResponse(data=result)

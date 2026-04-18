@@ -45,7 +45,19 @@ async def get_segment(
     segment: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Serve an HLS segment (.ts file). Supports HTTP range requests for seeking."""
+    """Serve an individual HLS segment (.ts) file.
+
+    Supports HTTP range requests so clients can seek within a stream.
+    Returns 425 if the video is not ready, or 404 if the segment is missing.
+
+    Args:
+        video_id: UUID string of the target video.
+        segment: Filename of the requested segment (e.g. ``seg0.ts``).
+        db: Injected async database session.
+
+    Returns:
+        FileResponse with content type ``video/MP2T`` and ``Accept-Ranges: bytes`` header.
+    """
     segment_path = await stream_service.get_segment_path(db, video_id, segment)
     return FileResponse(
         path=segment_path,
@@ -56,6 +68,17 @@ async def get_segment(
 
 @router.delete("/internal/{video_id}/cache")
 async def invalidate_cache(video_id: str, redis: Redis = Depends(get_redis)):
-    """Internal endpoint to invalidate cached manifest (call after re-encoding)."""
+    """Invalidate the cached HLS manifest for a video.
+
+    Internal endpoint intended for use after re-encoding. Removes the Redis
+    entry so the next manifest request re-reads from disk.
+
+    Args:
+        video_id: UUID string of the video whose cache should be cleared.
+        redis: Injected Redis client.
+
+    Returns:
+        dict with a confirmation message.
+    """
     await invalidate_manifest_cache(redis, video_id)
     return {"message": f"Cache invalidated for video {video_id}"}

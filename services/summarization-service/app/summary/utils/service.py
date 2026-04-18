@@ -20,7 +20,22 @@ logger = logging.getLogger(__name__)
 
 
 async def get_summary(db: AsyncSession, redis: Redis, video_id: str) -> SummaryResponse:
-    """Cache-aside: Redis (1h) → PostgreSQL → 404."""
+    """Retrieve a video summary using a cache-aside strategy.
+
+    Checks Redis (1-hour TTL) first, then falls back to PostgreSQL.
+    Writes the database result back to Redis before returning.
+
+    Args:
+        db: Active async database session.
+        redis: Active Redis client.
+        video_id: UUID string of the video.
+
+    Returns:
+        SummaryResponse containing the transcript, summary, and key moments.
+
+    Raises:
+        SummaryNotFoundError: If no summary record exists for this video.
+    """
     cached = await get_cached_summary(redis, video_id)
     if cached:
         return SummaryResponse(**cached)
@@ -46,7 +61,18 @@ async def process_video(
     video_id: str,
     hls_path: str,
 ) -> None:
-    """Full pipeline: audio extraction → transcription → summarization → store."""
+    """Run the full AI summarization pipeline for a video.
+
+    Extracts audio from the HLS stream, transcribes it with Whisper, generates
+    a summary with BART, persists the result to PostgreSQL, and primes the Redis
+    cache. Skips processing if a summary already exists (idempotent).
+
+    Args:
+        db: Active async database session.
+        redis: Active Redis client.
+        video_id: UUID string of the video to process.
+        hls_path: Filesystem path to the HLS master manifest (``.m3u8``).
+    """
     # Skip if already processed (idempotent)
     existing = await repo.get_by_video_id(db, video_id)
     if existing:

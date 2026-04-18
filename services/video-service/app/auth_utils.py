@@ -18,6 +18,21 @@ async def get_current_user_id(
     request: Request,
     redis: Redis = Depends(get_redis),
 ) -> str:
+    """FastAPI dependency that resolves the session cookie to a user ID.
+
+    Looks up the ``session_id`` cookie in Redis and slides the TTL forward on
+    each successful call (24-hour rolling window).
+
+    Args:
+        request: The incoming HTTP request (provides cookie access).
+        redis: Async Redis client injected by FastAPI.
+
+    Returns:
+        The authenticated user's UUID string.
+
+    Raises:
+        AuthError: If the cookie is missing, or the session has expired.
+    """
     session_id = request.cookies.get("session_id")
     if not session_id:
         raise AuthError("Not authenticated")

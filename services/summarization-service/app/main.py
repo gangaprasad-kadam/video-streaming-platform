@@ -17,6 +17,15 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown.
+
+    On startup: connects to the database and Redis, then launches the Kafka
+    consumer as a background asyncio task.  On shutdown: cancels the consumer
+    and closes all connections gracefully.
+
+    Args:
+        app: The FastAPI application instance.
+    """
     await connect_db()
     await connect_redis()
 
@@ -43,6 +52,15 @@ app.include_router(summary_router)
 
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException):
+    """Convert an AppException into a structured JSON error response.
+
+    Args:
+        request: The incoming HTTP request.
+        exc: The application exception that was raised.
+
+    Returns:
+        JSONResponse with the exception's status code and error payload.
+    """
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -55,6 +73,15 @@ async def app_exception_handler(request: Request, exc: AppException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_handler(request: Request, exc: RequestValidationError):
+    """Convert a Pydantic validation error into a structured JSON error response.
+
+    Args:
+        request: The incoming HTTP request.
+        exc: The validation error raised by FastAPI/Pydantic.
+
+    Returns:
+        JSONResponse with status 422 and a list of field-level validation errors.
+    """
     return JSONResponse(
         status_code=422,
         content={
@@ -67,4 +94,9 @@ async def validation_handler(request: Request, exc: RequestValidationError):
 
 @app.get("/health")
 async def health():
+    """Health check endpoint.
+
+    Returns:
+        dict with service status and name.
+    """
     return {"status": "ok", "service": "summarization-service"}

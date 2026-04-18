@@ -13,6 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 async def run_consumer() -> None:
+    """Start the Kafka consumer and process ``video.processed`` events.
+
+    Runs indefinitely until cancelled (e.g. on application shutdown).
+    Each message is dispatched to ``_handle_event`` for processing.
+    """
     consumer = AIOKafkaConsumer(
         settings.KAFKA_TOPIC_CONSUME,
         bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
@@ -36,6 +41,16 @@ async def run_consumer() -> None:
 
 
 async def _handle_event(event: dict) -> None:
+    """Process a single ``video.processed`` Kafka event.
+
+    Extracts ``videoId`` and ``hlsPath`` from the event payload, then
+    triggers the full AI summarization pipeline. Malformed events are
+    logged and skipped. Failures are caught and logged without re-raising
+    so the consumer loop continues.
+
+    Args:
+        event: Decoded Kafka message value containing ``videoId`` and ``hlsPath``.
+    """
     video_id = event.get("videoId")
     hls_path = event.get("hlsPath")
 
