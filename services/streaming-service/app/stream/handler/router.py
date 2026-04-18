@@ -19,7 +19,19 @@ async def get_manifest(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
-    """Serve the HLS manifest (.m3u8) for a ready video. Cached in Redis for 5 minutes."""
+    """Serve the HLS manifest (.m3u8) for a ready video.
+
+    Checks Redis first (5-minute TTL) before reading the file from disk.
+    Returns 425 if the video exists but is not yet ready.
+
+    Args:
+        video_id: UUID string of the target video.
+        db: Injected async database session.
+        redis: Injected Redis client.
+
+    Returns:
+        PlainTextResponse with content type ``application/vnd.apple.mpegurl``.
+    """
     content = await stream_service.get_manifest(db, redis, video_id)
     return PlainTextResponse(
         content=content,

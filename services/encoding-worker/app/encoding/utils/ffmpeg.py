@@ -9,7 +9,25 @@ logger = logging.getLogger(__name__)
 
 
 async def transcode_to_hls(video_id: str, input_path: str) -> dict:
-    """Transcode a video file to HLS format. Returns hls_path and duration."""
+    """Transcode a video file to HLS format using ffmpeg.
+
+    Creates an output directory at ``MEDIA_ROOT/hls/{video_id}``, runs ffmpeg
+    to produce segmented HLS files and an ``.m3u8`` manifest, and probes the
+    source file for its duration.
+
+    Args:
+        video_id: Unique video identifier; used to name the output directory.
+        input_path: Absolute filesystem path to the source video file.
+
+    Returns:
+        A dict containing:
+            - ``hls_path`` (str): Absolute path to the generated ``.m3u8`` manifest.
+            - ``duration`` (float | None): Video length in seconds, or ``None``
+              if ffprobe could not determine it.
+
+    Raises:
+        RuntimeError: If the ffmpeg subprocess exits with a non-zero code.
+    """
     output_dir = os.path.join(settings.MEDIA_ROOT, "hls", video_id)
     os.makedirs(output_dir, exist_ok=True)
     manifest_path = os.path.join(output_dir, "index.m3u8")
@@ -36,7 +54,15 @@ async def transcode_to_hls(video_id: str, input_path: str) -> dict:
 
 
 async def _get_duration(input_path: str) -> float | None:
-    """Extract video duration in seconds via ffprobe."""
+    """Return the duration of a media file in seconds using ffprobe.
+
+    Args:
+        input_path: Absolute path to the media file to probe.
+
+    Returns:
+        Duration as a float (seconds), or ``None`` if ffprobe fails or the
+        duration field is absent in the output.
+    """
     cmd = [
         "ffprobe",
         "-v", "quiet",
@@ -54,7 +80,19 @@ async def _get_duration(input_path: str) -> float | None:
 
 
 async def _run_subprocess(cmd: list[str], label: str) -> str:
-    """Run a subprocess asynchronously; raise RuntimeError on non-zero exit."""
+    """Run an external command asynchronously and return its stdout.
+
+    Args:
+        cmd: The command and its arguments to execute.
+        label: Human-readable name for the command, used in error messages.
+
+    Returns:
+        The decoded stdout string produced by the subprocess.
+
+    Raises:
+        RuntimeError: If the process exits with a non-zero return code,
+            including the stderr output in the exception message.
+    """
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,

@@ -11,6 +11,7 @@ _producer: AIOKafkaProducer | None = None
 
 
 async def start_producer() -> None:
+    """Initialize and start the global Kafka producer instance."""
     global _producer
     _producer = AIOKafkaProducer(
         bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
@@ -21,6 +22,7 @@ async def start_producer() -> None:
 
 
 async def stop_producer() -> None:
+    """Flush pending messages and shut down the global Kafka producer."""
     if _producer:
         await _producer.stop()
         logger.info("Kafka producer stopped")
@@ -31,6 +33,18 @@ async def publish_processed(
     hls_path: str | None,
     duration: float | None,
 ) -> None:
+    """Publish a ``video.processed`` event to Kafka.
+
+    Args:
+        video_id: ID of the video that finished encoding.
+        hls_path: Absolute path to the HLS manifest file, or ``None`` if
+            transcoding did not produce one.
+        duration: Video length in seconds, or ``None`` if unknown.
+
+    Raises:
+        RuntimeError: If the producer has not been started via
+            ``start_producer`` before this call.
+    """
     if _producer is None:
         raise RuntimeError("Kafka producer not started")
     await _producer.send_and_wait(

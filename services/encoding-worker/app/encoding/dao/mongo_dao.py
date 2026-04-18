@@ -10,6 +10,14 @@ _client: AsyncIOMotorClient | None = None
 
 
 def _get_collection():
+    """Return the MongoDB collection used for encoding processing logs.
+
+    Lazily initializes the Motor client on the first call and reuses it on
+    subsequent calls.
+
+    Returns:
+        An ``AsyncIOMotorCollection`` for the ``processing_logs`` collection.
+    """
     global _client
     if _client is None:
         _client = AsyncIOMotorClient(settings.MONGO_URL)
@@ -17,7 +25,18 @@ def _get_collection():
 
 
 async def log_processing_event(video_id: str, event: str, details: dict) -> None:
-    """Persist a processing log entry to MongoDB."""
+    """Insert an encoding processing log entry into MongoDB.
+
+    Errors from MongoDB are caught and logged as warnings so that logging
+    failures never interrupt the main encoding pipeline.
+
+    Args:
+        video_id: ID of the video this log entry belongs to.
+        event: Short event name, e.g. ``"encoding_started"`` or
+            ``"encoding_failed"``.
+        details: Arbitrary dict with event-specific context such as file paths
+            or error messages.
+    """
     try:
         await _get_collection().insert_one({
             "videoId": video_id,

@@ -9,6 +9,8 @@ from app.database import Base
 
 
 class VideoStatus(str, enum.Enum):
+    """Lifecycle states for a video asset."""
+
     uploading = "uploading"
     processing = "processing"
     ready = "ready"
@@ -16,6 +18,8 @@ class VideoStatus(str, enum.Enum):
 
 
 class Video(Base):
+    """ORM model representing a video record in the ``videos`` table."""
+
     __tablename__ = "videos"
 
     id: Mapped[uuid.UUID] = mapped_column(

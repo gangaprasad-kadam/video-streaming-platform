@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel
 
 
@@ -29,7 +31,7 @@ class VideoStatusResponse(BaseModel):
 
 
 class InternalStatusUpdateRequest(BaseModel):
-    status: str
+    status: Literal["uploading", "processing", "ready", "failed"]
     hls_path: str | None = None
     thumbnail_path: str | None = None
     duration: float | None = None

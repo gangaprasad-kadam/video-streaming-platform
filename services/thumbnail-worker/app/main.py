@@ -12,11 +12,17 @@ logger = logging.getLogger(__name__)
 
 
 async def main() -> None:
+    """Start the thumbnail worker and run until a shutdown signal is received.
+
+    Registers SIGINT and SIGTERM handlers, then delegates to the Kafka consumer
+    loop. Blocks until the stop event is set by a signal handler.
+    """
     logger.info("thumbnail-worker starting...")
     loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()
 
     def _shutdown() -> None:
+        """Set the stop event to trigger a graceful consumer shutdown."""
         logger.info("Shutdown signal received — stopping consumer")
         stop_event.set()
 

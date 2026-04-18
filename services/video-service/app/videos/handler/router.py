@@ -30,6 +30,22 @@ async def upload_video(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    """Upload a new video file.
+
+    Saves the file to disk, creates a DB record, and publishes a
+    ``video.uploaded`` Kafka event to trigger the processing pipeline.
+
+    Args:
+        title: Human-readable title for the video.
+        description: Optional description text.
+        file: Multipart video file upload.
+        user_id: ID of the authenticated uploader (from session cookie).
+        db: Async database session.
+        redis: Async Redis client.
+
+    Returns:
+        SuccessResponse wrapping the newly created VideoResponse.
+    """
     video = await video_service.upload_video(db, redis, file, title, description, user_id)
     return SuccessResponse(data=video_service._to_response(video))
 
@@ -40,6 +56,21 @@ async def get_video(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    """Fetch a single video by ID.
+
+    Checks Redis cache first; falls back to PostgreSQL on a cache miss.
+
+    Args:
+        video_id: UUID string of the video to retrieve.
+        db: Async database session.
+        redis: Async Redis client.
+
+    Returns:
+        SuccessResponse wrapping VideoResponse.
+
+    Raises:
+        VideoNotFoundError: If no video with the given ID exists.
+    """
     video = await video_service.get_video(db, redis, video_id)
     return SuccessResponse(data=video)
 
@@ -51,6 +82,18 @@ async def list_videos(
     creator_id: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
+    """List videos with optional creator filter and pagination.
+
+    Args:
+        page: 1-based page number.
+        limit: Maximum number of results per page.
+        creator_id: Optional UUID string to filter by creator.
+        db: Async database session.
+
+    Returns:
+        PagedResponse containing a list of VideoResponse objects plus
+        total count, current page, and page size.
+    """
     result = await video_service.list_videos(db, page=page, limit=limit, creator_id=creator_id)
     return PagedResponse(
         data=[video_service._to_response(v) for v in result.items],
@@ -68,12 +111,46 @@ async def patch_video(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    """Update a video's title or description (creator only).
+
+    Only the video's creator may call this endpoint. Invalidates the
+    Redis cache entry for the video on success.
+
+    Args:
+        video_id: UUID string of the video to update.
+        data: Fields to update (title and/or description).
+        user_id: ID of the authenticated user (from session cookie).
+        db: Async database session.
+        redis: Async Redis client.
+
+    Returns:
+        SuccessResponse wrapping the updated VideoResponse.
+
+    Raises:
+        VideoNotFoundError: If the video does not exist.
+        VideoForbiddenError: If the requester is not the creator.
+    """
     video = await video_service.patch_video(db, redis, video_id, user_id, data.title, data.description)
     return SuccessResponse(data=video)
 
 
 @router.get("/{video_id}/status", response_model=SuccessResponse[VideoStatusResponse])
 async def get_status(video_id: str, db: AsyncSession = Depends(get_db)):
+    """Return the processing status of a video.
+
+    Lightweight polling endpoint that bypasses the cache so callers
+    always get the latest lifecycle state.
+
+    Args:
+        video_id: UUID string of the video to check.
+        db: Async database session.
+
+    Returns:
+        SuccessResponse wrapping VideoStatusResponse with id and status.
+
+    Raises:
+        VideoNotFoundError: If no video with the given ID exists.
+    """
     video = await get_by_id(db, video_id)
     if not video:
         raise VideoNotFoundError(video_id)
@@ -87,6 +164,23 @@ async def internal_update_status(
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
+    """Internal endpoint for workers to advance a video's lifecycle status.
+
+    Called by ``encoding-worker`` and ``thumbnail-worker`` after processing.
+    Not exposed through the public NGINX gateway.
+
+    Args:
+        video_id: UUID string of the video being updated.
+        data: New status plus optional HLS path, thumbnail path, and duration.
+        db: Async database session.
+        redis: Async Redis client (cache is invalidated on update).
+
+    Returns:
+        SuccessResponse wrapping the updated VideoResponse.
+
+    Raises:
+        VideoNotFoundError: If the video does not exist.
+    """
     video = await video_service.update_status(
         db, redis, video_id, data.status, data.hls_path, data.thumbnail_path, data.duration
     )

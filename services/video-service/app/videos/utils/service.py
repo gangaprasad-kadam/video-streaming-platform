@@ -17,6 +17,14 @@ from app.videos.utils.schemas import VideoResponse
 
 
 def _to_response(video: Video) -> VideoResponse:
+    """Convert a Video ORM instance to a VideoResponse schema.
+
+    Args:
+        video: SQLAlchemy Video model instance.
+
+    Returns:
+        VideoResponse with all fields serialised to primitive types.
+    """
     return VideoResponse(
         id=str(video.id),
         title=video.title,
@@ -41,6 +49,23 @@ async def upload_video(
     description: str | None,
     creator_id: str,
 ) -> Video:
+    """Save an uploaded video file and create its database record.
+
+    Writes the file to ``MEDIA_ROOT/uploads/``, renames it to the
+    real UUID after the DB row is created, then publishes a
+    ``video.uploaded`` Kafka event.
+
+    Args:
+        db: Async database session.
+        redis: Async Redis client (reserved for future cache ops).
+        file: Incoming multipart file from the HTTP request.
+        title: Title for the video.
+        description: Optional description for the video.
+        creator_id: UUID string of the uploading user.
+
+    Returns:
+        The newly created Video ORM instance.
+    """
     video_id_placeholder = uuid.uuid4()
     ext = os.path.splitext(file.filename or "video.mp4")[1] or ".mp4"
     file_path = os.path.join(settings.MEDIA_ROOT, "uploads", f"{video_id_placeholder}{ext}")
@@ -83,6 +108,22 @@ async def upload_video(
 
 
 async def get_video(db: AsyncSession, redis: Redis, video_id: str) -> VideoResponse:
+    """Retrieve a video by ID using a cache-aside strategy.
+
+    Checks Redis first; on a miss, fetches from PostgreSQL and
+    populates the cache with a 5-minute TTL.
+
+    Args:
+        db: Async database session.
+        redis: Async Redis client.
+        video_id: UUID string of the video.
+
+    Returns:
+        VideoResponse for the requested video.
+
+    Raises:
+        VideoNotFoundError: If no video with the given ID exists.
+    """
     cached = await get_cached_video(redis, video_id)
     if cached:
         return VideoResponse(**cached)
@@ -99,6 +140,20 @@ async def get_video(db: AsyncSession, redis: Redis, video_id: str) -> VideoRespo
 async def list_videos(
     db: AsyncSession, page: int, limit: int, creator_id: str | None
 ) -> VideoPage:
+    """Return a paginated list of videos.
+
+    Delegates directly to the repository layer. Optionally filters
+    results to a single creator.
+
+    Args:
+        db: Async database session.
+        page: 1-based page number.
+        limit: Maximum number of items per page.
+        creator_id: Optional UUID string to restrict results to one creator.
+
+    Returns:
+        VideoPage containing matched Video ORM instances and total count.
+    """
     return await repo.list_videos(db, page=page, limit=limit, creator_id=creator_id)
 
 

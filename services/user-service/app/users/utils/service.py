@@ -6,6 +6,18 @@ from app.users.dao import repository as repo
 
 
 async def get_me(db: AsyncSession, user_id: str) -> User:
+    """Retrieve the authenticated user's record.
+
+    Args:
+        db: Async database session.
+        user_id: UUID string of the authenticated user.
+
+    Returns:
+        The User ORM object.
+
+    Raises:
+        UserNotFoundError: If no user exists with the given ID.
+    """
     user = await repo.get_user_by_id(db, user_id)
     if not user:
         raise UserNotFoundError()

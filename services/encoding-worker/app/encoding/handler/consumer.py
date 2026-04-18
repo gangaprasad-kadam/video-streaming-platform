@@ -14,6 +14,16 @@ logger = logging.getLogger(__name__)
 
 
 async def run_consumer(stop_event: asyncio.Event) -> None:
+    """Start the Kafka consumer and process incoming ``video.uploaded`` events.
+
+    Initializes the Kafka producer, then consumes messages from the configured
+    topic until ``stop_event`` is set. Each message is dispatched to
+    ``_handle_event`` for encoding.
+
+    Args:
+        stop_event: When set, causes the consumer loop to exit cleanly after
+            the current message is processed.
+    """
     consumer = AIOKafkaConsumer(
         settings.KAFKA_TOPIC_CONSUME,
         bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
@@ -38,6 +48,17 @@ async def run_consumer(stop_event: asyncio.Event) -> None:
 
 
 async def _handle_event(event: dict) -> None:
+    """Process a single ``video.uploaded`` Kafka event end-to-end.
+
+    Validates the payload, triggers HLS transcoding, updates the video-service
+    with the result, logs every stage to MongoDB, and publishes a
+    ``video.processed`` event on success. Marks the video as ``failed`` if any
+    step raises an exception.
+
+    Args:
+        event: Deserialized Kafka message payload. Expected keys: ``videoId``,
+            ``filePath``, and optionally ``mimeType``.
+    """
     video_id = event.get("videoId")
     file_path = event.get("filePath")
     mime_type = event.get("mimeType", "video/mp4")

@@ -14,7 +14,22 @@ async def update_video_status(
     thumbnail_path: str | None = None,
     duration: float | None = None,
 ) -> None:
-    """Call video-service internal PATCH to update video status and metadata."""
+    """Update a video's status and optional metadata via the video-service internal API.
+
+    Sends a PATCH to ``/internal/videos/{video_id}/status``. Only fields with
+    non-``None`` values are included in the request body.
+
+    Args:
+        video_id: UUID of the video to update.
+        status: New lifecycle status, e.g. ``"processing"``, ``"ready"``, or
+            ``"failed"``.
+        hls_path: Absolute path to the HLS manifest file, if available.
+        thumbnail_path: Absolute path to the generated thumbnail image, if available.
+        duration: Video length in seconds, if known.
+
+    Raises:
+        httpx.HTTPStatusError: If the video-service returns a non-2xx response.
+    """
     url = f"{settings.VIDEO_SERVICE_URL}/internal/videos/{video_id}/status"
     payload: dict = {"status": status}
     if hls_path is not None:

@@ -71,7 +71,7 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
     healthcheck:
       test:
         ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "kafka:9092"]
@@ -136,7 +136,7 @@ services:
     environment:
       PORT: ${VIDEO_SERVICE_PORT}
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      REDIS_URL: redis://redis:6379/1
+      REDIS_URL: redis://redis:6379/0
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       MEDIA_ROOT: /media
     volumes:
@@ -151,6 +151,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
 
   streaming-service:
     build: ./services/streaming-service
@@ -192,6 +194,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
 
   # ─────────────────────────────────────────────
   # PROCESSING WORKERS (Phase 4)
@@ -212,6 +216,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
       mongo:
         condition: service_healthy
 
@@ -230,6 +236,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
       mongo:
         condition: service_healthy
 

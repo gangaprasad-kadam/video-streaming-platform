@@ -17,6 +17,18 @@ router = APIRouter(prefix="/users", tags=["users"])
 async def _get_current_user_id(
     request: Request, redis: Redis = Depends(get_redis)
 ) -> str:
+    """Extract and validate the session cookie, returning the user's ID.
+
+    Args:
+        request: Incoming HTTP request containing the session cookie.
+        redis: Redis client (injected).
+
+    Returns:
+        The authenticated user's ID string.
+
+    Raises:
+        AuthError: If the session cookie is missing or the session has expired.
+    """
     session_id = request.cookies.get("session_id")
     if not session_id:
         raise AuthError("Not authenticated")

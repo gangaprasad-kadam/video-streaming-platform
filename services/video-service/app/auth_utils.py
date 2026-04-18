@@ -25,4 +25,4 @@ async def get_current_user_id(
     if not user_id:
         raise AuthError("Session expired or invalid")
     await redis.expire(f"session:{session_id}", _SESSION_TTL)
-    return user_id
+    return user_id.decode() if isinstance(user_id, bytes) else user_id
