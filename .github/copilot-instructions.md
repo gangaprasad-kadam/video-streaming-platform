@@ -11,22 +11,22 @@ A distributed video streaming platform built with FastAPI microservices, React f
 
 ---
 
-## Current State (Progress: 3 / 10 Phases)
+## Current State (Progress: 6 / 10 Phases)
 
 | Phase | Status | Service(s) |
 |-------|--------|------------|
 | 1 — Infrastructure & Skeleton | ✅ Done | Docker Compose, Kafka, Redis, PostgreSQL, NGINX, `shared/` |
 | 2 — User Service | ✅ Done | `user-service` |
 | 3 — Video Service | ✅ Done | `video-service` |
-| 4 — Processing Pipeline | 🔲 Not Started | `encoding-worker`, `thumbnail-worker` |
-| 5 — Streaming Service | 🔲 Not Started | `streaming-service` |
-| 6 — AI Summarization | 🔲 Not Started | `summarization-service` |
+| 4 — Processing Pipeline | ✅ Done | `encoding-worker`, `thumbnail-worker` |
+| 5 — Streaming Service | ✅ Done | `streaming-service` |
+| 6 — AI Summarization | ✅ Done | `summarization-service` |
 | 7 — Trending & Recommendations | 🔲 Not Started | `trending-service` |
 | 8 — Heatmap Engine ⭐ | 🔲 Not Started | `event-ingestion`, `heatmap-aggregator`, `heatmap-api` |
 | 9 — Frontend | 🔲 Not Started | `frontend/` |
 | 10 — Integration & Docs | 🔲 Not Started | E2E tests, final compose |
 
-**Next buildable phases (all dependencies met):** Phase 4, Phase 7, Phase 8a
+**Next buildable phases (all dependencies met):** Phase 7, Phase 8a
 
 ---
 
@@ -170,46 +170,30 @@ class Settings(BaseSettings):
 ### Error Logging
 Unhandled exceptions → MongoDB `error_logs` via Motor (planned — not yet implemented in phases 1-3).
 
+### summarization-service (port 8004)
+- Kafka consumer: `video.processed` → Whisper transcription → BART summarization → PostgreSQL
+- `GET /summary/{videoId}` — cache-aside: Redis (1h TTL) → PostgreSQL fallback → 404
+- **DB:** PostgreSQL `video_summaries` table (transcript, summary, key_moments JSONB)
+- **Cache:** Redis `summary:{videoId}`, 1h TTL
+- **AI:** OpenAI Whisper (`base` model) for transcription, DistilBART for summarization
+- CPU-heavy AI calls run in thread executor; models pre-downloaded at Docker build time
+- **Structure:** `app/summary/` with `handler/` (router + consumer), `utils/`, `dao/`
+
 ---
 
-## Next Actions (Phase 4 — Processing Pipeline)
+## Next Actions (Phase 7 — Trending & Recommendations)
 
-Build two Kafka consumer workers triggered by `video.uploaded` events:
+Build a FastAPI service + Kafka consumer for trending leaderboard using Redis sorted sets:
 
-### encoding-worker
-- Kafka consumer: topic `video.uploaded`
-- FFmpeg HLS transcoding: `video.mp4` → `index.m3u8` + `.ts` segments in `/media/hls/{videoId}/`
-- FFprobe: extract duration
-- On success: call `PATCH /internal/videos/{id}/status` with `{"status": "processing"}` then `{"status": "ready", "hls_path": "...", "duration": ...}`
-- On failure: call status endpoint with `{"status": "failed"}`
-- Publishes `video.processed` Kafka event
-- Logs to MongoDB `processing_logs`
-- Must be idempotent: skip if video already `ready` or `failed`
+### trending-service
+- Kafka consumer: topic `viewer-interaction-events` → Redis `ZINCRBY` scoring
+- `GET /trending` — top N videos from Redis sorted set (sub-ms reads)
+- `GET /recommendations/{userId}` — 60% trending + 40% creator-based, minus watched
+- Score decay: hourly 0.9× multiplier via background task
+- PostgreSQL `watch_history` table (upserted on `PLAY` events)
 
-### thumbnail-worker
-- Kafka consumer: topic `video.uploaded`
-- FFmpeg frame extraction at `t=5s`: → `/media/thumbnails/{videoId}.jpg`
-- On success: call status endpoint with `thumbnail_path`
-- Idempotent
-
-### New service structure:
-```
-services/encoding-worker/
-├── Dockerfile
-├── requirements.txt
-└── app/
-    ├── main.py          ← start/stop Kafka consumer
-    ├── config.py
-    ├── consumer.py      ← Kafka consumer loop
-    └── encoding/
-        ├── handler/     ← Kafka event handler (not HTTP)
-        ├── utils/       ← encoding logic (ffmpeg subprocess)
-        └── dao/         ← MongoDB logging
-```
-
-### Alternative next phases (can be built in parallel with Phase 4):
-- **Phase 7 (Trending):** Redis sorted sets + `viewer-interaction-events` consumer
-- **Phase 8a (Event Ingestion):** `POST /events/interaction` → Kafka, Redis rate limiting
+### Alternative next phase (can be built in parallel):
+- **Phase 8a (Event Ingestion):** `POST /events/interaction` → 202 + async Kafka publish, Redis rate limiting
 
 ---
 
@@ -230,10 +214,10 @@ project/
 │   │   └── dependencies.py
 │   ├── user-service/             ← Phase 2 ✅
 │   ├── video-service/            ← Phase 3 ✅
-│   ├── encoding-worker/          ← Phase 4 🔲
-│   ├── thumbnail-worker/         ← Phase 4 🔲
-│   ├── streaming-service/        ← Phase 5 🔲
-│   ├── summarization-service/    ← Phase 6 🔲
+│   ├── encoding-worker/          ← Phase 4 ✅
+│   ├── thumbnail-worker/         ← Phase 4 ✅
+│   ├── streaming-service/        ← Phase 5 ✅
+│   ├── summarization-service/    ← Phase 6 ✅
 │   ├── trending-service/         ← Phase 7 🔲
 │   ├── event-ingestion/          ← Phase 8a 🔲
 │   ├── heatmap-aggregator/       ← Phase 8b 🔲
