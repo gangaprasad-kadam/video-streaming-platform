@@ -2,7 +2,7 @@
 
 A scalable distributed video streaming platform (YouTube/Netflix-style) built with microservices, event-driven architecture, and real-time analytics.
 
-**Progress: 7 / 10 Phases Complete**
+**Progress: 8 / 10 Phases Complete**
 
 ---
 
@@ -28,6 +28,7 @@ cp .env.example .env
 | `/stream/*` | streaming-service | http://localhost:8003/docs |
 | `/summary/*` | summarization-service | http://localhost:8004/docs |
 | `/trending/*`, `/recommendations/*` | trending-service | http://localhost:8005/docs |
+| `/events/*` | event-ingestion | http://localhost:8006/docs |
 
 ---
 
@@ -50,6 +51,7 @@ Browser → NGINX (port 80) → Microservices → Data Stores
 | streaming-service | 8003 | HLS manifest & segment delivery |
 | summarization-service | 8004 | Consumes `video.processed` → Whisper transcription → DistilBART summary |
 | trending-service | 8005 | Consumes viewer interactions → Redis sorted set leaderboard + recommendations |
+| event-ingestion | 8006 | `POST /events/interaction` → validate + rate limit + Kafka publish (202) |
 | shared/ | — | Common exceptions, response schemas, auth dependencies |
 
 **Data Stores:** PostgreSQL (relational data), Redis (sessions & cache), MongoDB (worker error logs), Kafka (async event bus)
@@ -173,7 +175,9 @@ No layer skipping: **Router → Service → Repository / Cache**
 | 5 | Streaming Service | ✅ Done |
 | 6 | AI Summarization | ✅ Done |
 | 7 | Trending & Recommendations | ✅ Done |
-| 8 | Heatmap Engine | 🔲 Not started |
+| 8a | Event Ingestion Service | ✅ Done |
+| 8b | Heatmap Aggregator | 🔲 Not started |
+| 8c | Heatmap API | 🔲 Not started |
 | 9 | Frontend (React) | 🔲 Not started |
 | 10 | Integration & Testing | 🔲 Not started |
 
@@ -278,11 +282,11 @@ docker compose up -d user-service video-service streaming-service
 ## 🔲 What's Left
 
 ### Phase 8 — Heatmap Engine
-Three new services to build:
+Two remaining services to build:
 
 | Service | Port | Description |
 |---------|------|-------------|
-| `event-ingestion` | 8006 | `POST /events/interaction` → 202 + async Kafka publish; Redis rate limiting |
+| ~~`event-ingestion`~~ | ~~8006~~ | ✅ Done |
 | `heatmap-aggregator` | — | Kafka consumer → per-second engagement scoring → MongoDB time-series |
 | `heatmap-api` | 8007 | `GET /heatmap/{videoId}` → engagement curve data for player overlay |
 

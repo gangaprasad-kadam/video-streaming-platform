@@ -230,6 +230,31 @@ services:
         condition: service_started
 
   # ─────────────────────────────────────────────
+  # EVENT INGESTION (Phase 8a)
+  # ─────────────────────────────────────────────
+
+  event-ingestion:
+    build: ./services/event-ingestion
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/5
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: viewer-interaction-events
+      RATE_LIMIT_PER_MINUTE: 60
+    volumes:
+      - ./services/shared:/app/shared:ro
+    ports:
+      - "8006:8006"
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
+
+  # ─────────────────────────────────────────────
   # PROCESSING WORKERS (Phase 4)
   # ─────────────────────────────────────────────
 
