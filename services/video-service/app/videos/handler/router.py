@@ -260,4 +260,8 @@ async def get_stream_info(
     video = await get_video_stream_info(db, video_id)
     if not video:
         raise VideoNotFoundError(video_id)
-    return SuccessResponse(data=StreamInfoResponse.model_validate(video))
+    return SuccessResponse(data=StreamInfoResponse(
+        id=str(video.id),
+        status=video.status.value,
+        hls_path=video.hls_path,
+    ))

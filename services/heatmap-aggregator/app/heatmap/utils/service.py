@@ -30,7 +30,7 @@ async def handle_interaction(
     bucket = await record_event(redis, event)
     await repo.upsert_bucket(db, event.videoId, bucket, weight)
 
-    logger.debug(
+    logger.info(
         "Recorded %s (w=%d) for video=%s bucket=%ds",
         event.action, weight, event.videoId, bucket,
     )

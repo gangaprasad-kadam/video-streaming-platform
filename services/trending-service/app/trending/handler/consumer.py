@@ -39,7 +39,7 @@ async def run_consumer() -> None:
                 redis = get_redis()
                 async with AsyncSessionFactory() as db:
                     await trending_service.handle_interaction(db, redis, event)
-                logger.debug(
+                logger.info(
                     "[%s] Processed %s event for video %s",
                     event.userId,
                     event.action,
