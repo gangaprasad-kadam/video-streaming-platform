@@ -8,25 +8,23 @@ AsyncSessionFactory = async_sessionmaker(engine, expire_on_commit=False)
 
 
 class Base(DeclarativeBase):
-    """Declarative base class shared by all ORM models in this service."""
+    """SQLAlchemy declarative base for all trending-service ORM models."""
+
+    pass
 
 
 async def connect_db() -> None:
-    """Open the database engine and verify the connection is reachable."""
+    """Verify the async database engine can reach PostgreSQL."""
     async with engine.begin() as conn:
         await conn.run_sync(lambda _: None)
 
 
 async def close_db() -> None:
-    """Dispose the database engine and release all connections."""
+    """Dispose of all connections in the async engine pool."""
     await engine.dispose()
 
 
 async def get_db() -> AsyncSession:  # type: ignore[override]
-    """Yield a scoped async database session for a single request.
-
-    Yields:
-        AsyncSession: An active SQLAlchemy async session.
-    """
+    """FastAPI dependency that yields a database session per request."""
     async with AsyncSessionFactory() as session:
         yield session

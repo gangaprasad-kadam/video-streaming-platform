@@ -3,9 +3,7 @@ import os
 from fastapi import APIRouter, Depends
 from fastapi.responses import FileResponse, PlainTextResponse
 from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
 from app.redis_client import get_redis
 from app.stream.utils import service as stream_service
 from app.stream.utils.cache import invalidate_manifest_cache
@@ -16,23 +14,21 @@ router = APIRouter(prefix="/stream", tags=["stream"])
 @router.get("/{video_id}/index.m3u8", response_class=PlainTextResponse)
 async def get_manifest(
     video_id: str,
-    db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
     """Serve the HLS manifest (.m3u8) for a ready video.
 
-    Checks Redis first (5-minute TTL) before reading the file from disk.
-    Returns 425 if the video exists but is not yet ready.
+    Checks Redis first (5-minute TTL) before calling video-service and reading
+    the file from disk.  Returns 425 if the video is not yet ready.
 
     Args:
         video_id: UUID string of the target video.
-        db: Injected async database session.
         redis: Injected Redis client.
 
     Returns:
         PlainTextResponse with content type ``application/vnd.apple.mpegurl``.
     """
-    content = await stream_service.get_manifest(db, redis, video_id)
+    content = await stream_service.get_manifest(redis, video_id)
     return PlainTextResponse(
         content=content,
         media_type="application/vnd.apple.mpegurl",
@@ -43,7 +39,7 @@ async def get_manifest(
 async def get_segment(
     video_id: str,
     segment: str,
-    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
 ):
     """Serve an individual HLS segment (.ts) file.
 
@@ -53,12 +49,12 @@ async def get_segment(
     Args:
         video_id: UUID string of the target video.
         segment: Filename of the requested segment (e.g. ``seg0.ts``).
-        db: Injected async database session.
+        redis: Injected Redis client (used to resolve HLS path from cache).
 
     Returns:
         FileResponse with content type ``video/MP2T`` and ``Accept-Ranges: bytes`` header.
     """
-    segment_path = await stream_service.get_segment_path(db, video_id, segment)
+    segment_path = await stream_service.get_segment_path(redis, video_id, segment)
     return FileResponse(
         path=segment_path,
         media_type="video/MP2T",
@@ -68,10 +64,10 @@ async def get_segment(
 
 @router.delete("/internal/{video_id}/cache")
 async def invalidate_cache(video_id: str, redis: Redis = Depends(get_redis)):
-    """Invalidate the cached HLS manifest for a video.
+    """Invalidate the cached HLS manifest and HLS path for a video.
 
-    Internal endpoint intended for use after re-encoding. Removes the Redis
-    entry so the next manifest request re-reads from disk.
+    Internal endpoint intended for use after re-encoding. Removes both Redis
+    entries so the next manifest request re-reads from disk.
 
     Args:
         video_id: UUID string of the video whose cache should be cleared.

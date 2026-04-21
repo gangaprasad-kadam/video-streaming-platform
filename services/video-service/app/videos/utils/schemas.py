@@ -39,6 +39,16 @@ class VideoStatusResponse(BaseModel):
     status: str
 
 
+class StreamInfoResponse(BaseModel):
+    """Minimal video info needed by streaming-service to locate HLS files."""
+
+    id: str
+    status: str
+    hls_path: str | None
+
+    model_config = {"from_attributes": True}
+
+
 class InternalStatusUpdateRequest(BaseModel):
     """Request body for the internal PATCH /internal/videos/{id}/status endpoint.
 

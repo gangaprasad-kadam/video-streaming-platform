@@ -1,32 +1,51 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.database import close_db, connect_db
 from app.redis_client import close_redis, connect_redis
-from app.stream.handler.router import router as stream_router
+from app.trending.handler.consumer import run_consumer
+from app.trending.handler.decay import run_decay_loop
+from app.trending.handler.router import router as trending_router
 from shared.exceptions import AppException
+
+logging.basicConfig(level=logging.INFO)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown.
 
-    Connects to Redis on startup and disconnects gracefully on shutdown.
-    Database access is handled by video-service over HTTP.
+    On startup: connects to the database and Redis, then launches the Kafka
+    consumer (for scoring) and the score decay loop as background asyncio tasks.
+    On shutdown: cancels both background tasks and closes all connections gracefully.
 
     Args:
         app: The FastAPI application instance.
     """
+    await connect_db()
     await connect_redis()
+
+    # Start Kafka consumer and decay loop as background tasks
+    consumer_task = asyncio.create_task(run_consumer())
+    decay_task = asyncio.create_task(run_decay_loop())
+
     yield
+
+    consumer_task.cancel()
+    decay_task.cancel()
+    await asyncio.gather(consumer_task, decay_task, return_exceptions=True)
     await close_redis()
+    await close_db()
 
 
-app = FastAPI(title="Streaming Service", lifespan=lifespan, redirect_slashes=False)
+app = FastAPI(title="Trending Service", lifespan=lifespan, redirect_slashes=False)
 
-app.include_router(stream_router)
+app.include_router(trending_router)
 
 
 @app.exception_handler(AppException)
@@ -78,4 +97,4 @@ async def health():
     Returns:
         dict with service status and name.
     """
-    return {"status": "ok", "service": "streaming-service"}
+    return {"status": "ok", "service": "trending-service"}

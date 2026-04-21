@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.requests import Request
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,10 +7,16 @@ from app.auth_utils import get_current_user_id
 from app.database import get_db
 from app.exceptions import VideoNotFoundError
 from app.redis_client import get_redis
-from app.videos.dao.repository import get_by_id
+from app.videos.dao.repository import (
+    get_by_id,
+    get_ready_videos_by_creators,
+    get_ready_videos_by_ids,
+    get_video_stream_info,
+)
 from app.videos.utils import service as video_service
 from app.videos.utils.schemas import (
     InternalStatusUpdateRequest,
+    StreamInfoResponse,
     VideoResponse,
     VideoStatusResponse,
     VideoUpdateRequest,
@@ -185,3 +191,73 @@ async def internal_update_status(
         db, redis, video_id, data.status, data.hls_path, data.thumbnail_path, data.duration
     )
     return SuccessResponse(data=video)
+
+
+@internal_router.get("/batch", response_model=SuccessResponse[list[VideoResponse]])
+async def batch_get_videos(
+    ids: str = Query(..., description="Comma-separated list of video UUIDs"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch multiple ready videos by ID in a single request.
+
+    Used by the trending-service to enrich trending scores with video metadata
+    without querying the database directly.
+
+    Args:
+        ids: Comma-separated video UUID strings.
+        db: Async database session.
+
+    Returns:
+        SuccessResponse wrapping a list of VideoResponse objects (only ``ready`` videos).
+    """
+    video_ids = [vid.strip() for vid in ids.split(",") if vid.strip()]
+    videos = await get_ready_videos_by_ids(db, video_ids)
+    return SuccessResponse(data=[video_service._to_response(v) for v in videos])
+
+
+@internal_router.get("/by-creators", response_model=SuccessResponse[list[VideoResponse]])
+async def get_videos_by_creators(
+    creator_ids: str = Query(..., description="Comma-separated creator UUIDs"),
+    exclude_ids: str = Query(default="", description="Comma-separated video UUIDs to exclude"),
+    limit: int = Query(default=40, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch ready videos from specific creators, excluding given video IDs.
+
+    Used by the trending-service to build the creator-based recommendation slice.
+
+    Args:
+        creator_ids: Comma-separated creator UUID strings.
+        exclude_ids: Comma-separated video UUIDs to exclude (already watched / trending picks).
+        limit: Maximum number of results to return.
+        db: Async database session.
+
+    Returns:
+        SuccessResponse wrapping a list of VideoResponse objects.
+    """
+    c_ids = [cid.strip() for cid in creator_ids.split(",") if cid.strip()]
+    e_ids = [vid.strip() for vid in exclude_ids.split(",") if vid.strip()]
+    videos = await get_ready_videos_by_creators(db, c_ids, e_ids, limit=limit)
+    return SuccessResponse(data=[video_service._to_response(v) for v in videos])
+
+
+@internal_router.get("/{video_id}/stream-info", response_model=SuccessResponse[StreamInfoResponse])
+async def get_stream_info(
+    video_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return HLS path and status for a ready video.
+
+    Used by streaming-service for strict API isolation — avoids direct DB access.
+
+    Args:
+        video_id: UUID string of the target video.
+        db: Async database session.
+
+    Returns:
+        SuccessResponse wrapping StreamInfoResponse, or 404 if not ready.
+    """
+    video = await get_video_stream_info(db, video_id)
+    if not video:
+        raise VideoNotFoundError(video_id)
+    return SuccessResponse(data=StreamInfoResponse.model_validate(video))

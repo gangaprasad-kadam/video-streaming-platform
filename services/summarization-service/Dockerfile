@@ -7,7 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir setuptools wheel && \
+    pip install --no-cache-dir --no-build-isolation -r requirements.txt
 
 # Pre-download AI models at build time so they are baked into the image
 RUN python3 -c "import whisper; whisper.load_model('base')"

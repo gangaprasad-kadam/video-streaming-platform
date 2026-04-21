@@ -88,8 +88,9 @@ services:
     restart: on-failure
     entrypoint: ["/bin/sh", "-c"]
     command: >
-      "kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic video.uploaded   --partitions 3 --replication-factor 1 &&
-       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic video.processed  --partitions 3 --replication-factor 1 &&
+      "kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic video.uploaded              --partitions 3 --replication-factor 1 &&
+       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic video.processed             --partitions 3 --replication-factor 1 &&
+       kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic viewer-interaction-events  --partitions 3 --replication-factor 1 &&
        echo 'Kafka topics created successfully'"
 
   # ─────────────────────────────────────────────
@@ -159,19 +160,19 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/2
       MEDIA_ROOT: /media
+      VIDEO_SERVICE_URL: http://video-service:${VIDEO_SERVICE_PORT}
     volumes:
       - ./services/shared:/app/shared:ro
       - media_data:/media:ro
     ports:
       - "8003:8003"
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
+      video-service:
+        condition: service_started
 
   summarization-service:
     build: ./services/summarization-service
@@ -196,6 +197,37 @@ services:
         condition: service_healthy
       kafka-setup:
         condition: service_completed_successfully
+
+  # ─────────────────────────────────────────────
+  # TRENDING SERVICE (Phase 7)
+  # ─────────────────────────────────────────────
+
+  trending-service:
+    build: ./services/trending-service
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/4
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_GROUP_ID: trending-service
+      KAFKA_TOPIC_CONSUME: viewer-interaction-events
+      VIDEO_SERVICE_URL: http://video-service:${VIDEO_SERVICE_PORT}
+    volumes:
+      - ./services/shared:/app/shared:ro
+    ports:
+      - "8005:8005"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
+      video-service:
+        condition: service_started
 
   # ─────────────────────────────────────────────
   # PROCESSING WORKERS (Phase 4)

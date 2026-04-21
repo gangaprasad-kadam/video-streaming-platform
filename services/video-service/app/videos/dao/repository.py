@@ -58,6 +58,25 @@ async def create_video(
     return video
 
 
+async def get_video_stream_info(db: AsyncSession, video_id: str) -> Video | None:
+    """Fetch a video only when status is ``ready`` (for streaming-service use).
+
+    Args:
+        db: Async database session.
+        video_id: UUID string of the video.
+
+    Returns:
+        Video ORM instance if found and ready, or ``None`` otherwise.
+    """
+    result = await db.execute(
+        select(Video).where(
+            Video.id == uuid.UUID(video_id),
+            Video.status == VideoStatus.ready,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def get_by_id(db: AsyncSession, video_id: str) -> Video | None:
     """Fetch a single Video by its UUID.
 
@@ -99,6 +118,59 @@ async def list_videos(
     query = query.order_by(Video.created_at.desc()).offset((page - 1) * limit).limit(limit)
     result = await db.execute(query)
     return VideoPage(items=list(result.scalars().all()), total=total)
+
+
+async def get_ready_videos_by_ids(
+    db: AsyncSession, video_ids: list[str]
+) -> list[Video]:
+    """Fetch ready Video rows for the given list of UUIDs.
+
+    Args:
+        db: Async database session.
+        video_ids: List of video UUID strings to look up.
+
+    Returns:
+        List of Video ORM instances that exist and have status ``ready``.
+    """
+    if not video_ids:
+        return []
+    uuids = [uuid.UUID(vid) for vid in video_ids]
+    result = await db.execute(
+        select(Video).where(Video.id.in_(uuids), Video.status == VideoStatus.ready)
+    )
+    return list(result.scalars().all())
+
+
+async def get_ready_videos_by_creators(
+    db: AsyncSession,
+    creator_ids: list[str],
+    exclude_video_ids: list[str],
+    limit: int = 40,
+) -> list[Video]:
+    """Fetch ready videos from specific creators, excluding given video IDs.
+
+    Args:
+        db: Async database session.
+        creator_ids: List of creator UUID strings to query.
+        exclude_video_ids: Video IDs to exclude.
+        limit: Maximum number of rows to return.
+
+    Returns:
+        List of up to ``limit`` Video ORM instances.
+    """
+    if not creator_ids:
+        return []
+    c_uuids = [uuid.UUID(cid) for cid in creator_ids]
+    stmt = select(Video).where(
+        Video.creator_id.in_(c_uuids),
+        Video.status == VideoStatus.ready,
+    )
+    if exclude_video_ids:
+        e_uuids = [uuid.UUID(vid) for vid in exclude_video_ids]
+        stmt = stmt.where(Video.id.notin_(e_uuids))
+    stmt = stmt.limit(limit)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
 
 
 async def update_video(db: AsyncSession, video: Video, title: str | None, description: str | None) -> Video:
