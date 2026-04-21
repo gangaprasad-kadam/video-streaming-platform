@@ -75,21 +75,24 @@ project/
 │   │   ├── exceptions.py            ← AppException hierarchy (NotFound, Auth, Conflict…)
 │   │   ├── schemas.py               ← SuccessResponse[T], PagedResponse[T], ErrorResponse
 │   │   └── dependencies.py          ← get_current_user (session cookie → Redis → user_id)
-│   ├── user-service/                ← :8001
-│   ├── video-service/               ← :8002
-│   ├── encoding-worker/             ← Kafka consumer → FFmpeg HLS
+│   ├── user-service/                ← :8001 auth, sessions
+│   ├── video-service/               ← :8002 upload, metadata CRUD
+│   ├── encoding-worker/             ← Kafka consumer → FFmpeg HLS transcode
 │   ├── thumbnail-worker/            ← Kafka consumer → FFmpeg thumbnail
-│   ├── streaming-service/           ← :8003
-│   ├── summarization-service/       ← :8004
-│   └── trending-service/            ← :8005
+│   ├── streaming-service/           ← :8003 HLS segment delivery
+│   ├── summarization-service/       ← :8004 Whisper + DistilBART
+│   ├── trending-service/            ← :8005 leaderboard + recommendations
+│   ├── event-ingestion/             ← :8006 POST /events/interaction → Kafka
+│   ├── heatmap-aggregator/          ← :8007 Kafka consumer → Redis + MongoDB bucket scoring
+│   └── heatmap-api/                 ← :8008 GET /heatmap/{id} all-time / live / highlights
 └── docs/
     ├── ARCHITECTURE.md              ← system design & LLD
     ├── DATABASE.md                  ← schemas (PostgreSQL, Redis, Kafka)
-    ├── HEATMAP.md                   ← heatmap engine spec (planned)
+    ├── HEATMAP.md                   ← heatmap engine design & scoring spec
     ├── ROADMAP.md                   ← all build phases & status
     ├── diagrams/                    ← architecture diagrams (PNG)
-    ├── service-working/             ← per-service working guides
-    └── test/                        ← per-service testing guides
+    ├── service-working/             ← per-service technical reference (01–10)
+    └── test/                        ← per-service Postman testing guides (01–09)
 ```
 
 ---
@@ -162,8 +165,23 @@ No layer skipping: **Router → Service → Repository / Cache**
 |-----|-------------|
 | [Architecture](docs/ARCHITECTURE.md) | System design, component breakdown, data flows, LLD |
 | [Database](docs/DATABASE.md) | PostgreSQL, Redis, Kafka schemas |
-| [Heatmap Engine](docs/HEATMAP.md) | Heatmap engine spec (planned — not yet implemented) |
+| [Heatmap Engine](docs/HEATMAP.md) | Heatmap engine design, bucket scoring, Redis key patterns |
 | [Roadmap](docs/ROADMAP.md) | Build phases & implementation status |
+
+### Service Technical References (`docs/service-working/`)
+
+| File | Service |
+|------|---------|
+| [01-user-service.md](docs/service-working/01-user-service.md) | Auth, sessions, user profile |
+| [02-video-service.md](docs/service-working/02-video-service.md) | Upload, metadata, Kafka events |
+| [03-encoding-worker.md](docs/service-working/03-encoding-worker.md) | FFmpeg HLS transcode worker |
+| [04-thumbnail-worker.md](docs/service-working/04-thumbnail-worker.md) | FFmpeg thumbnail worker |
+| [05-streaming-service.md](docs/service-working/05-streaming-service.md) | HLS segment delivery |
+| [06-summarization-service.md](docs/service-working/06-summarization-service.md) | Whisper + DistilBART AI pipeline |
+| [07-trending-service.md](docs/service-working/07-trending-service.md) | Leaderboard + recommendations |
+| [08-event-ingestion.md](docs/service-working/08-event-ingestion.md) | Interaction event write gateway |
+| [09-heatmap-aggregator.md](docs/service-working/09-heatmap-aggregator.md) | Kafka → bucket scoring → Redis + MongoDB |
+| [10-heatmap-api.md](docs/service-working/10-heatmap-api.md) | Heatmap read API (all-time / live / highlights) |
 
 ---
 
@@ -233,6 +251,18 @@ docker compose up -d streaming-service
 
 # Summarization Service (Whisper + BART) — needs Kafka topics
 docker compose up -d summarization-service
+
+# Trending Service (leaderboard + recommendations) — needs Kafka + Redis
+docker compose up -d trending-service
+
+# Event Ingestion (interaction event gateway) — needs Kafka + Redis
+docker compose up -d event-ingestion
+
+# Heatmap Aggregator (Kafka consumer → Redis + MongoDB) — needs Kafka + Redis + MongoDB
+docker compose up -d heatmap-aggregator
+
+# Heatmap API (read endpoints) — needs Redis + MongoDB
+docker compose up -d heatmap-api
 ```
 
 ### Rebuild a Single Service (after code changes)
@@ -255,6 +285,10 @@ docker compose logs -f encoding-worker
 docker compose logs -f thumbnail-worker
 docker compose logs -f streaming-service
 docker compose logs -f summarization-service
+docker compose logs -f trending-service
+docker compose logs -f event-ingestion
+docker compose logs -f heatmap-aggregator
+docker compose logs -f heatmap-api
 ```
 
 ### Check Status
@@ -284,17 +318,15 @@ docker compose up -d user-service video-service streaming-service
 
 ## 🔲 What's Left
 
-### Phase 8 — Heatmap Engine
-~~All heatmap services are complete.~~ ✅
-
 ### Phase 9 — Frontend (React 18 + Vite)
 - Video player with HLS.js
 - Auth pages (register / login)
 - Upload flow with processing status polling
 - Trending & recommendations feed
 - AI summary panel alongside the player
+- Heatmap overlay on video progress bar (fires `POST /events/interaction` on PLAY, PAUSE, SEEK, REWIND)
 
 ### Phase 10 — Integration & End-to-End Testing
 - Full `docker compose up` smoke tests
-- End-to-end flow: upload → encode → stream → summarize → trending
+- End-to-end flow: upload → encode → stream → summarize → trending → heatmap
 - Final documentation pass
