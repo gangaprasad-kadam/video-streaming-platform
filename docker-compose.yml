@@ -160,6 +160,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/2
       MEDIA_ROOT: /media
       VIDEO_SERVICE_URL: http://video-service:${VIDEO_SERVICE_PORT}
@@ -169,6 +170,8 @@ services:
     ports:
       - "8003:8003"
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       video-service:
