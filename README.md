@@ -2,7 +2,7 @@
 
 A scalable distributed video streaming platform (YouTube/Netflix-style) built with microservices, event-driven architecture, and real-time analytics.
 
-**Progress: 8 / 10 Phases Complete**
+**Progress: 10 / 12 Services Complete** (Frontend + Integration remaining)
 
 ---
 
@@ -29,6 +29,7 @@ cp .env.example .env
 | `/summary/*` | summarization-service | http://localhost:8004/docs |
 | `/trending/*`, `/recommendations/*` | trending-service | http://localhost:8005/docs |
 | `/events/*` | event-ingestion | http://localhost:8006/docs |
+| `/heatmap/*` | heatmap-api | http://localhost:8008/docs |
 
 ---
 
@@ -52,6 +53,8 @@ Browser → NGINX (port 80) → Microservices → Data Stores
 | summarization-service | 8004 | Consumes `video.processed` → Whisper transcription → DistilBART summary |
 | trending-service | 8005 | Consumes viewer interactions → Redis sorted set leaderboard + recommendations |
 | event-ingestion | 8006 | `POST /events/interaction` → validate + rate limit + Kafka publish (202) |
+| heatmap-aggregator | 8007 | Consumes viewer interactions → 5s bucket scoring → Redis + MongoDB |
+| heatmap-api | 8008 | `GET /heatmap/{id}` all-time, `/live` 5-min window, `/highlights` top segments |
 | shared/ | — | Common exceptions, response schemas, auth dependencies |
 
 **Data Stores:** PostgreSQL (relational data), Redis (sessions & cache), MongoDB (worker error logs), Kafka (async event bus)
@@ -176,8 +179,8 @@ No layer skipping: **Router → Service → Repository / Cache**
 | 6 | AI Summarization | ✅ Done |
 | 7 | Trending & Recommendations | ✅ Done |
 | 8a | Event Ingestion Service | ✅ Done |
-| 8b | Heatmap Aggregator | 🔲 Not started |
-| 8c | Heatmap API | 🔲 Not started |
+| 8b | Heatmap Aggregator | ✅ Done |
+| 8c | Heatmap API | ✅ Done |
 | 9 | Frontend (React) | 🔲 Not started |
 | 10 | Integration & Testing | 🔲 Not started |
 
@@ -282,13 +285,7 @@ docker compose up -d user-service video-service streaming-service
 ## 🔲 What's Left
 
 ### Phase 8 — Heatmap Engine
-Two remaining services to build:
-
-| Service | Port | Description |
-|---------|------|-------------|
-| ~~`event-ingestion`~~ | ~~8006~~ | ✅ Done |
-| `heatmap-aggregator` | — | Kafka consumer → per-second engagement scoring → MongoDB time-series |
-| `heatmap-api` | 8007 | `GET /heatmap/{videoId}` → engagement curve data for player overlay |
+~~All heatmap services are complete.~~ ✅
 
 ### Phase 9 — Frontend (React 18 + Vite)
 - Video player with HLS.js

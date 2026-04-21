@@ -35,7 +35,7 @@ services:
     image: mongo:6
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "27018:27017"    # mapped to 27018 to avoid conflict with local MongoDB
     volumes:
       - mongo_data:/data/db
     healthcheck:
@@ -253,6 +253,60 @@ services:
         condition: service_healthy
       kafka-setup:
         condition: service_completed_successfully
+
+  # ─────────────────────────────────────────────
+  # HEATMAP AGGREGATOR (Phase 8b)
+  # ─────────────────────────────────────────────
+
+  heatmap-aggregator:
+    build: ./services/heatmap-aggregator
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/6
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC_CONSUME: viewer-interaction-events
+      KAFKA_GROUP_ID: heatmap-aggregator
+      MONGO_URL: mongodb://mongo:27017
+      MONGO_DB: heatmaps
+      BUCKET_SIZE: 5
+      LIVE_TTL: 300
+    volumes:
+      - ./services/shared:/app/shared:ro
+    ports:
+      - "8007:8007"
+    depends_on:
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      kafka-setup:
+        condition: service_completed_successfully
+      mongo:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────
+  # HEATMAP API (Phase 8c)
+  # ─────────────────────────────────────────────
+
+  heatmap-api:
+    build: ./services/heatmap-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/6
+      MONGO_URL: mongodb://mongo:27017
+      MONGO_DB: heatmaps
+      BUCKET_SIZE: 5
+    volumes:
+      - ./services/shared:/app/shared:ro
+    ports:
+      - "8008:8008"
+    depends_on:
+      redis:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
 
   # ─────────────────────────────────────────────
   # PROCESSING WORKERS (Phase 4)
