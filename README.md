@@ -2,7 +2,7 @@
 
 A scalable distributed video streaming platform (YouTube/Netflix-style) built with microservices, event-driven architecture, and real-time analytics.
 
-**Unique Feature 🔥** — Viewer Behavior Heatmap Engine: real-time per-second engagement analytics overlaid on the video player.
+**Progress: 7 / 10 Phases Complete**
 
 ---
 
@@ -27,6 +27,7 @@ cp .env.example .env
 | `/videos/*` | video-service | http://localhost:8002/docs |
 | `/stream/*` | streaming-service | http://localhost:8003/docs |
 | `/summary/*` | summarization-service | http://localhost:8004/docs |
+| `/trending/*`, `/recommendations/*` | trending-service | http://localhost:8005/docs |
 
 ---
 
@@ -48,6 +49,7 @@ Browser → NGINX (port 80) → Microservices → Data Stores
 | thumbnail-worker | — | Consumes `video.uploaded` → FFmpeg thumbnail extraction |
 | streaming-service | 8003 | HLS manifest & segment delivery |
 | summarization-service | 8004 | Consumes `video.processed` → Whisper transcription → DistilBART summary |
+| trending-service | 8005 | Consumes viewer interactions → Redis sorted set leaderboard + recommendations |
 | shared/ | — | Common exceptions, response schemas, auth dependencies |
 
 **Data Stores:** PostgreSQL (relational data), Redis (sessions & cache), MongoDB (worker error logs), Kafka (async event bus)
@@ -61,24 +63,91 @@ project/
 ├── docker-compose.yml
 ├── .env / .env.example
 ├── start.sh
-├── nginx/nginx.conf
+├── nginx/
+│   └── nginx.conf
 ├── services/
-│   ├── shared/                  ← common Python utilities (exceptions, schemas, deps)
-│   ├── user-service/            ← :8001 (auth, users)
-│   ├── video-service/           ← :8002 (upload, metadata)
-│   ├── encoding-worker/         ← Kafka consumer → FFmpeg HLS
-│   ├── thumbnail-worker/        ← Kafka consumer → FFmpeg thumbnail
-│   ├── streaming-service/       ← :8003 (HLS delivery)
-│   └── summarization-service/   ← :8004 (Whisper + BART)
+│   ├── shared/                      ← common Python module (mounted into all services)
+│   │   ├── exceptions.py            ← AppException hierarchy (NotFound, Auth, Conflict…)
+│   │   ├── schemas.py               ← SuccessResponse[T], PagedResponse[T], ErrorResponse
+│   │   └── dependencies.py          ← get_current_user (session cookie → Redis → user_id)
+│   ├── user-service/                ← :8001
+│   ├── video-service/               ← :8002
+│   ├── encoding-worker/             ← Kafka consumer → FFmpeg HLS
+│   ├── thumbnail-worker/            ← Kafka consumer → FFmpeg thumbnail
+│   ├── streaming-service/           ← :8003
+│   ├── summarization-service/       ← :8004
+│   └── trending-service/            ← :8005
 └── docs/
-    ├── ARCHITECTURE.md          ← system design & LLD
-    ├── DATABASE.md              ← schemas (PostgreSQL, Redis, Kafka)
-    ├── HEATMAP.md               ← unique feature spec
-    ├── ROADMAP.md               ← all build phases & status
-    ├── diagrams/                ← architecture diagrams (PNG)
-    ├── service-working/         ← per-service working guides
-    └── test/                    ← per-service testing guides
+    ├── ARCHITECTURE.md              ← system design & LLD
+    ├── DATABASE.md                  ← schemas (PostgreSQL, Redis, Kafka)
+    ├── HEATMAP.md                   ← heatmap engine spec (planned)
+    ├── ROADMAP.md                   ← all build phases & status
+    ├── diagrams/                    ← architecture diagrams (PNG)
+    ├── service-working/             ← per-service working guides
+    └── test/                        ← per-service testing guides
 ```
+
+---
+
+## 🏛️ Service Structure (user-service as example)
+
+Every service follows the same **three-layer architecture**. Below is `user-service` laid out in full:
+
+```
+services/user-service/
+├── Dockerfile
+├── requirements.txt
+├── alembic.ini                          ← Alembic config for DB migrations
+├── pytest.ini
+│
+├── app/
+│   ├── main.py                          ← FastAPI app, lifespan hooks, exception handlers
+│   ├── config.py                        ← pydantic-settings BaseSettings (DATABASE_URL, REDIS_URL…)
+│   ├── database.py                      ← SQLAlchemy async engine + Base + get_db dependency
+│   ├── redis_client.py                  ← Redis singleton + get_redis dependency
+│   ├── models.py                        ← SQLAlchemy ORM models (User table)
+│   ├── exceptions.py                    ← service-specific exceptions (extends shared/)
+│   │
+│   ├── auth/                            ← domain: registration & login
+│   │   ├── handler/
+│   │   │   └── router.py               ← LAYER 1: HTTP routes (POST /auth/register, /login, /logout)
+│   │   ├── utils/
+│   │   │   ├── service.py              ← LAYER 2: business logic (bcrypt hash, session create/delete)
+│   │   │   ├── schemas.py              ← Pydantic request/response models (RegisterRequest, LoginRequest…)
+│   │   │   └── cache.py                ← Redis helpers (set_session, delete_session, get_user_id)
+│   │   └── dao/
+│   │       └── repository.py           ← LAYER 3: SQLAlchemy queries (get_by_email, create_user)
+│   │
+│   └── users/                          ← domain: profile read
+│       ├── handler/
+│       │   └── router.py               ← GET /users/me (requires session cookie)
+│       ├── utils/
+│       │   ├── service.py              ← fetch user from DB by id
+│       │   └── schemas.py              ← UserResponse schema
+│       └── dao/
+│           └── repository.py           ← get_user_by_id query
+│
+├── migrations/
+│   ├── env.py
+│   └── versions/
+│       └── 0001_create_users_table.py
+│
+└── tests/
+    ├── conftest.py                      ← SQLite in-memory DB + AsyncMock Redis + ASGI client
+    ├── test_auth.py                     ← register, login, logout endpoint tests
+    └── test_users.py                    ← /users/me endpoint tests
+```
+
+**Layer rules (strictly enforced across all services):**
+
+| Layer | File | Responsibility | Can call |
+|-------|------|----------------|----------|
+| 1 — Handler | `handler/router.py` | HTTP routing, request/response wiring | Service only |
+| 2 — Service | `utils/service.py` | Business logic, orchestration | Repository + Cache |
+| 3 — Repository | `dao/repository.py` | Raw SQLAlchemy queries | DB session only |
+| Cache | `utils/cache.py` | Redis read/write helpers | Redis client only |
+
+No layer skipping: **Router → Service → Repository / Cache**
 
 ---
 
@@ -88,7 +157,7 @@ project/
 |-----|-------------|
 | [Architecture](docs/ARCHITECTURE.md) | System design, component breakdown, data flows, LLD |
 | [Database](docs/DATABASE.md) | PostgreSQL, Redis, Kafka schemas |
-| [Heatmap Engine](docs/HEATMAP.md) | Unique feature deep-dive |
+| [Heatmap Engine](docs/HEATMAP.md) | Heatmap engine spec (planned — not yet implemented) |
 | [Roadmap](docs/ROADMAP.md) | Build phases & implementation status |
 
 ---
@@ -103,7 +172,7 @@ project/
 | 4 | Encoding & Thumbnail Workers | ✅ Done |
 | 5 | Streaming Service | ✅ Done |
 | 6 | AI Summarization | ✅ Done |
-| 7 | Trending & Recommendations | 🔲 Not started |
+| 7 | Trending & Recommendations | ✅ Done |
 | 8 | Heatmap Engine | 🔲 Not started |
 | 9 | Frontend (React) | 🔲 Not started |
 | 10 | Integration & Testing | 🔲 Not started |
@@ -203,3 +272,28 @@ docker compose up -d postgres redis zookeeper kafka mongo nginx
 docker compose up kafka-setup
 docker compose up -d user-service video-service streaming-service
 ```
+
+---
+
+## 🔲 What's Left
+
+### Phase 8 — Heatmap Engine
+Three new services to build:
+
+| Service | Port | Description |
+|---------|------|-------------|
+| `event-ingestion` | 8006 | `POST /events/interaction` → 202 + async Kafka publish; Redis rate limiting |
+| `heatmap-aggregator` | — | Kafka consumer → per-second engagement scoring → MongoDB time-series |
+| `heatmap-api` | 8007 | `GET /heatmap/{videoId}` → engagement curve data for player overlay |
+
+### Phase 9 — Frontend (React 18 + Vite)
+- Video player with HLS.js
+- Auth pages (register / login)
+- Upload flow with processing status polling
+- Trending & recommendations feed
+- AI summary panel alongside the player
+
+### Phase 10 — Integration & End-to-End Testing
+- Full `docker compose up` smoke tests
+- End-to-end flow: upload → encode → stream → summarize → trending
+- Final documentation pass
