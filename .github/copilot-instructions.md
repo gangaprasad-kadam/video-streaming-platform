@@ -4,14 +4,27 @@
 
 A distributed video streaming platform built with FastAPI microservices, React frontend, Kafka event bus, Redis, PostgreSQL, MongoDB, and NGINX gateway.
 
-**Stack:** Python 3.10 (FastAPI) · React 18 (Vite) · Docker Compose · Apache Kafka · Redis · PostgreSQL · MongoDB · NGINX  
+**Stack:** Python 3.11 (FastAPI) · React 18 (Vite) · Docker Compose · Apache Kafka · Redis · PostgreSQL · MongoDB · NGINX  
 **Auth:** Session-based (HttpOnly cookie + Redis, no JWT)  
 **Unique Feature:** 🔥 Viewer Behavior Heatmap Engine  
 **Root:** `services/` contains all backend services; `services/shared/` is a Python module mounted into every service.
 
+| Service | Port | Responsibility |
+|---------|------|----------------|
+| user-service | 8001 | Registration, login, session auth (Redis) |
+| video-service | 8002 | Video upload, metadata CRUD, Kafka events |
+| streaming-service | 8003 | HLS manifest & segment delivery |
+| summarization-service | 8004 | Whisper transcription + DistilBART summary |
+| trending-service | 8005 | Leaderboard + recommendations (Redis sorted sets) |
+| event-ingestion | 8006 | `POST /events/interaction` → rate limit → Kafka |
+| heatmap-aggregator | 8007 | Kafka consumer → bucket scoring → Redis + MongoDB |
+| heatmap-api | 8008 | Heatmap read API (all-time / live / highlights) |
+| encoding-worker | — | Kafka consumer → FFmpeg HLS transcode |
+| thumbnail-worker | — | Kafka consumer → FFmpeg thumbnail extraction |
+
 ---
 
-## Current State (Progress: 6 / 10 Phases)
+## Current State (Progress: 10 / 12 Services Complete)
 
 | Phase | Status | Service(s) |
 |-------|--------|------------|
@@ -21,12 +34,14 @@ A distributed video streaming platform built with FastAPI microservices, React f
 | 4 — Processing Pipeline | ✅ Done | `encoding-worker`, `thumbnail-worker` |
 | 5 — Streaming Service | ✅ Done | `streaming-service` |
 | 6 — AI Summarization | ✅ Done | `summarization-service` |
-| 7 — Trending & Recommendations | 🔲 Not Started | `trending-service` |
-| 8 — Heatmap Engine ⭐ | 🔲 Not Started | `event-ingestion`, `heatmap-aggregator`, `heatmap-api` |
+| 7 — Trending & Recommendations | ✅ Done | `trending-service` |
+| 8a — Event Ingestion | ✅ Done | `event-ingestion` |
+| 8b — Heatmap Aggregator | ✅ Done | `heatmap-aggregator` |
+| 8c — Heatmap API | ✅ Done | `heatmap-api` |
 | 9 — Frontend | 🔲 Not Started | `frontend/` |
 | 10 — Integration & Docs | 🔲 Not Started | E2E tests, final compose |
 
-**Next buildable phases (all dependencies met):** Phase 7, Phase 8a
+**Next buildable phases (all dependencies met):** Phase 9 (Frontend), Phase 10 (Integration)
 
 ---
 
@@ -112,6 +127,46 @@ from app.{domain}.handler.router import router as {domain}_router
 - **DB:** PostgreSQL `videos` table; **Kafka:** producer to `video.uploaded`
 - **Structure:** `app/videos/` with `handler/`, `utils/`, `dao/`
 
+### streaming-service (port 8003)
+- `GET /stream/{videoId}/index.m3u8` — serve HLS manifest; Redis cache-aside (5min TTL), checks video-service for ready status; returns 425 if not ready
+- `GET /stream/{videoId}/{segment}` — serve HLS `.ts` segment file; supports HTTP range requests for seeking
+- `DELETE /internal/{videoId}/cache` — invalidate cached manifest (called after re-encoding)
+- **Cache:** Redis `manifest:{videoId}` (5min TTL), `hls_path:{videoId}`
+- **Structure:** `app/stream/` with `handler/`, `utils/` (no DB — stateless file serving)
+
+### summarization-service (port 8004)
+- Kafka consumer: `video.processed` → Whisper transcription → DistilBART summarization → PostgreSQL
+- `GET /summary/{videoId}` — cache-aside: Redis (1h TTL) → PostgreSQL fallback → 404
+- **DB:** PostgreSQL `video_summaries` table (transcript, summary, key_moments JSONB)
+- **Cache:** Redis `summary:{videoId}`, 1h TTL
+- **AI:** OpenAI Whisper (`base` model) for transcription, DistilBART for summarization
+- CPU-heavy AI calls run in thread executor; models pre-downloaded at Docker build time
+- **Structure:** `app/summary/` with `handler/` (router + consumer), `utils/`, `dao/`
+
+### trending-service (port 8005)
+- Kafka consumer: `viewer-interaction-events` → Redis `ZINCRBY` scoring
+- `GET /trending` — top N videos from Redis sorted set (sub-ms reads)
+- `GET /recommendations/{userId}` — 60% trending + 40% creator-based, minus watched
+- Score decay: hourly 0.9× multiplier via background task
+- **DB:** PostgreSQL `watch_history` table (upserted on `PLAY` events)
+- **Structure:** `app/trending/` with `handler/`, `utils/`, `dao/`
+
+### event-ingestion (port 8006)
+- `POST /events/interaction` → validates event, Redis rate limiting, async Kafka publish → 202
+- Kafka topic: `viewer-interaction-events`
+- **Structure:** `app/events/` with `handler/`, `utils/`
+
+### heatmap-aggregator (port 8007, background worker)
+- Kafka consumer: `viewer-interaction-events` → 5-second bucket scoring → Redis + MongoDB
+- **Cache:** Redis heatmap buckets; **DB:** MongoDB `heatmap_data` collection
+- **Structure:** `app/heatmap/` with `handler/` (consumer), `utils/`, `dao/`
+
+### heatmap-api (port 8008)
+- `GET /heatmap/{videoId}` — all-time heatmap from MongoDB
+- `GET /heatmap/{videoId}/live` — 5-minute sliding window from Redis
+- `GET /heatmap/{videoId}/highlights` — top-scoring segments
+- **Structure:** `app/heatmap/` with `handler/`, `utils/`, `dao/`
+
 ---
 
 ## Shared Module (`services/shared/`)
@@ -152,6 +207,12 @@ Error responses: `{"error": "ERROR_CODE", "message": "...", "detail": ...}` — 
 - Key: always `entity_id.encode()` for partition ordering
 - Consumers must be idempotent (check state before processing, handle redelivery)
 
+| Topic | Producer | Consumers |
+|-------|----------|-----------|
+| `video.uploaded` | video-service | encoding-worker, thumbnail-worker |
+| `video.processed` | encoding-worker | summarization-service |
+| `viewer-interaction-events` | event-ingestion | trending-service, heatmap-aggregator |
+
 ### Database
 - All services use PostgreSQL via `asyncpg` + SQLAlchemy async
 - Alembic runs `upgrade head` at container startup (in Dockerfile CMD)
@@ -168,32 +229,25 @@ class Settings(BaseSettings):
 ```
 
 ### Error Logging
-Unhandled exceptions → MongoDB `error_logs` via Motor (planned — not yet implemented in phases 1-3).
-
-### summarization-service (port 8004)
-- Kafka consumer: `video.processed` → Whisper transcription → BART summarization → PostgreSQL
-- `GET /summary/{videoId}` — cache-aside: Redis (1h TTL) → PostgreSQL fallback → 404
-- **DB:** PostgreSQL `video_summaries` table (transcript, summary, key_moments JSONB)
-- **Cache:** Redis `summary:{videoId}`, 1h TTL
-- **AI:** OpenAI Whisper (`base` model) for transcription, DistilBART for summarization
-- CPU-heavy AI calls run in thread executor; models pre-downloaded at Docker build time
-- **Structure:** `app/summary/` with `handler/` (router + consumer), `utils/`, `dao/`
+Unhandled exceptions → MongoDB `error_logs` via Motor (planned for all services). MongoDB is currently used by `heatmap-aggregator` for heatmap bucket storage.
 
 ---
 
-## Next Actions (Phase 7 — Trending & Recommendations)
+## Next Actions (Phase 9 — Frontend)
 
-Build a FastAPI service + Kafka consumer for trending leaderboard using Redis sorted sets:
+Build the React 18 + Vite frontend:
 
-### trending-service
-- Kafka consumer: topic `viewer-interaction-events` → Redis `ZINCRBY` scoring
-- `GET /trending` — top N videos from Redis sorted set (sub-ms reads)
-- `GET /recommendations/{userId}` — 60% trending + 40% creator-based, minus watched
-- Score decay: hourly 0.9× multiplier via background task
-- PostgreSQL `watch_history` table (upserted on `PLAY` events)
+- Video player with HLS.js
+- Auth pages (register / login)
+- Upload flow with processing status polling
+- Trending & recommendations feed
+- AI summary panel alongside the player
+- Heatmap overlay on video progress bar (fires `POST /events/interaction` on PLAY, PAUSE, SEEK, REWIND)
 
-### Alternative next phase (can be built in parallel):
-- **Phase 8a (Event Ingestion):** `POST /events/interaction` → 202 + async Kafka publish, Redis rate limiting
+### After frontend (Phase 10 — Integration & Testing):
+- Full `docker compose up` smoke tests
+- End-to-end flow: upload → encode → stream → summarize → trending → heatmap
+- Final documentation pass
 
 ---
 
@@ -205,6 +259,7 @@ project/
 │   └── copilot-instructions.md   ← this file
 ├── docker-compose.yml
 ├── .env / .env.example
+├── start.sh
 ├── nginx/
 │   └── nginx.conf
 ├── services/
@@ -218,16 +273,19 @@ project/
 │   ├── thumbnail-worker/         ← Phase 4 ✅
 │   ├── streaming-service/        ← Phase 5 ✅
 │   ├── summarization-service/    ← Phase 6 ✅
-│   ├── trending-service/         ← Phase 7 🔲
-│   ├── event-ingestion/          ← Phase 8a 🔲
-│   ├── heatmap-aggregator/       ← Phase 8b 🔲
-│   └── heatmap-api/              ← Phase 8c 🔲
+│   ├── trending-service/         ← Phase 7 ✅
+│   ├── event-ingestion/          ← Phase 8a ✅
+│   ├── heatmap-aggregator/       ← Phase 8b ✅
+│   └── heatmap-api/              ← Phase 8c ✅
 ├── frontend/                     ← Phase 9 🔲
 └── docs/
     ├── ROADMAP.md
     ├── ARCHITECTURE.md
     ├── DATABASE.md
-    └── HEATMAP.md
+    ├── HEATMAP.md
+    ├── diagrams/                 ← architecture diagrams (PNG)
+    ├── service-working/          ← per-service technical reference (01–10)
+    └── test/                     ← per-service Postman testing guides (01–09)
 ```
 
 ---
@@ -246,6 +304,9 @@ Run tests from service root:
 ```bash
 cd services/user-service && python3 -m pytest tests/ -v
 cd services/video-service && python3 -m pytest tests/ -v
+cd services/trending-service && python3 -m pytest tests/ -v
+cd services/event-ingestion && python3 -m pytest tests/ -v
+cd services/heatmap-api && python3 -m pytest tests/ -v
 ```
 
 When patching service settings in tests, use the full three-layer path:

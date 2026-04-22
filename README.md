@@ -57,7 +57,7 @@ Browser → NGINX (port 80) → Microservices → Data Stores
 | heatmap-api | 8008 | `GET /heatmap/{id}` all-time, `/live` 5-min window, `/highlights` top segments |
 | shared/ | — | Common exceptions, response schemas, auth dependencies |
 
-**Data Stores:** PostgreSQL (relational data), Redis (sessions & cache), MongoDB (worker error logs), Kafka (async event bus)
+**Data Stores:** PostgreSQL (relational data), Redis (sessions & cache), MongoDB (heatmap bucket data; error logs planned), Kafka (async event bus)
 
 ---
 
