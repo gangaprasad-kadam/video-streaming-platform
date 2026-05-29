@@ -1,0 +1,14 @@
+services:
+  frontend:
+    build: .
+    ports:
+      - "3000:80"
+    environment:
+      # URL of the running backend API gateway (NGINX on port 80)
+      # Linux:          http://host.docker.internal:80  (requires extra_hosts below)
+      # Mac / Windows:  http://host.docker.internal:80  (works out of the box)
+      # Custom host:    http://<backend-ip>:80
+      BACKEND_URL: ${BACKEND_URL:-http://host.docker.internal:80}
+    extra_hosts:
+      # Allows "host.docker.internal" to resolve to the host machine on Linux
+      - "host.docker.internal:host-gateway"

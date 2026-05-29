@@ -288,6 +288,39 @@ GET /heatmap/{videoId}/highlights?limit=5
 
 ---
 
+#### GET `/heatmap/{video_id}/stream` — SSE Live Feed
+
+**Auth Required:** Yes (session cookie) — creator only  
+**Protocol:** Server-Sent Events (text/event-stream)
+
+Streams live heatmap snapshots to connected clients every few seconds via `sse-starlette`. The frontend's `useHeatmapSSE` hook connects to this endpoint to update the heatmap chart in real time on the Dashboard and Player pages.
+
+**Path Parameters:**
+| Parameter | Type | Description |
+|---|---|---|
+| `video_id` | string | Video UUID |
+
+**SSE Event Format:**
+```
+data: {"video_id": "abc-123", "segments": [{"segment_id": 0, "count": 12, "label": "0:00–0:05"}, ...]}
+
+data: {"video_id": "abc-123", "segments": [...]}
+```
+
+Each event is a JSON-encoded object that the frontend normalises via `heatmap.js` → `normBucket` mapping (`bucket → segment_id`, `score → count`).
+
+**Internal Flow:**
+```
+GET /heatmap/{video_id}/stream
+    → auth check: must be creator (403 if not)
+    → EventSourceResponse (sse-starlette)
+        → generator: loop every N seconds
+            → heatmap_service.get_heatmap(db, video_id)
+            → yield JSON snapshot
+```
+
+---
+
 ## 8. Response Schemas (utils/schemas.py)
 
 ```python

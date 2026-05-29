@@ -1,0 +1,16 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-5);
+}
+
+.empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: var(--space-16) var(--space-6);
+  color: var(--color-text-muted);
+}
+
+.emptyIcon { font-size: 48px; margin-bottom: var(--space-4); }
+.emptyTitle { font-size: var(--text-lg); font-weight: var(--fw-semi); color: var(--color-text-secondary); margin-bottom: var(--space-2); }
+.emptyText  { font-size: var(--text-sm); }

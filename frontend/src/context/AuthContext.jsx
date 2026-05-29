@@ -16,9 +16,11 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = async (email, password) => {
-    const data = await apiLogin({ email, password })
-    setUser(data)
-    return data
+    // Login only sets cookie; then fetch user profile
+    await apiLogin({ email, password })
+    const profile = await getMe()
+    setUser(profile)
+    return profile
   }
 
   const logout = async () => {
@@ -27,7 +29,8 @@ export function AuthProvider({ children }) {
   }
 
   const register = async (name, email, password) => {
-    await apiRegister({ name, email, password })
+    // Backend field is "username", not "name"
+    await apiRegister({ username: name, email, password })
     return login(email, password)
   }
 

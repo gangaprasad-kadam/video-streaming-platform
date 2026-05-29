@@ -361,6 +361,7 @@ List videos with pagination. Optionally filter by creator.
 | `page` | int | 1 | Page number (1-indexed) |
 | `limit` | int | 20 | Items per page |
 | `creator_id` | UUID string | None | Filter to specific creator's videos |
+| `q` | string | None | Case-insensitive title substring search (ILIKE `%q%`) |
 
 **Success Response — 200 OK:**
 ```json

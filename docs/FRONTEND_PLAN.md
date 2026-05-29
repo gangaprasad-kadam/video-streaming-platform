@@ -1,8 +1,9 @@
-# 🖥️ Phase 9 — Frontend Build Plan
+# 🖥️ Phase 9 — Frontend Build Plan ✅ COMPLETE
 ## Distributed Video Streaming Platform — React 18 + Vite
 
 **Location:** `project/frontend/`  
-**Stack:** React 18 · Vite · React Router v6 · Axios · hls.js · Recharts · Vitest + Testing Library
+**Stack:** React 18 · Vite · React Router v6 · Axios · hls.js · Recharts · Vitest + Testing Library  
+**Status:** ✅ All modules built, all 55 tests passing, production build verified.
 
 ---
 
@@ -11,10 +12,12 @@
 ```
 frontend/
 ├── Dockerfile
+├── docker-compose.yml             ← standalone frontend on port 3000
+├── nginx.conf.template            ← envsubst template; ${BACKEND_URL} substitution
 ├── vite.config.js
 ├── package.json
 ├── index.html
-├── .env.example               ← VITE_API_BASE_URL=http://localhost
+├── .env.example               ← BACKEND_URL=http://localhost  (Docker mode)
 ├── src/
 │   ├── main.jsx               ← React root, Router, QueryClientProvider
 │   ├── App.jsx                ← Route definitions

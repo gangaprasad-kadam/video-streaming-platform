@@ -5,9 +5,17 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Unwrap the SuccessResponse envelope: { success, data, message }
+// Unwrap response envelopes:
+//   SuccessResponse  { success, data, message }  → return data
+//   PagedResponse    { data: [...], total, ... }  → return full object (preserves pagination)
 client.interceptors.response.use(
-  (response) => response.data.data ?? response.data,
+  (response) => {
+    const body = response.data
+    // PagedResponse: has numeric `total` field (SuccessResponse never does)
+    if (typeof body?.total === 'number') return body
+    // SuccessResponse: unwrap .data
+    return body?.data ?? body
+  },
   (error) => {
     const message =
       error.response?.data?.message ||

@@ -1,177 +1,311 @@
-# Distributed Video Streaming Platform
+# VidStream — Distributed Video Streaming Platform
 
-A scalable distributed video streaming platform (YouTube/Netflix-style) built with microservices, event-driven architecture, and real-time analytics.
+A full-stack, scalable distributed video streaming platform (YouTube/Netflix-style) built with **10 FastAPI microservices**, **Apache Kafka**, a **React 18 SPA**, and real-time analytics.
 
-**Progress: 10 / 12 Services Complete** (Frontend + Integration remaining)
+---
+
+## ✅ Implementation Status
+
+| Phase | Component | Status |
+|-------|-----------|--------|
+| 1 | Infrastructure (Docker, Kafka, NGINX) | ✅ Complete |
+| 2 | User Service (auth, sessions) | ✅ Complete |
+| 3 | Video Service (upload, metadata) | ✅ Complete |
+| 4 | Encoding & Thumbnail Workers | ✅ Complete |
+| 5 | Streaming Service (HLS) | ✅ Complete |
+| 6 | AI Summarization (Whisper + DistilBART) | ✅ Complete |
+| 7 | Trending & Recommendations | ✅ Complete |
+| 8a | Event Ingestion Service | ✅ Complete |
+| 8b | Heatmap Aggregator | ✅ Complete |
+| 8c | Heatmap API | ✅ Complete |
+| 9 | Frontend (React 18 + Vite) | ✅ Complete |
 
 ---
 
 ## 🚀 Quick Start
 
+The backend and frontend are started **independently**. Run them in two separate terminals.
+
+---
+
+### Prerequisites
+
+| Tool | Minimum Version | Check |
+|------|----------------|-------|
+| Docker | 24+ | `docker --version` |
+| Docker Compose | v2 (plugin) | `docker compose version` |
+| Node.js | 18+ | `node --version` |
+
+---
+
+### Terminal 1 — Start the Backend
+
 ```bash
-# 1. Copy env file
-cp backend/.env.example backend/.env
+cd project/backend
 
-# 2. Start everything (from project root)
-cd backend && ./start.sh
+# First time only — copy and configure env
+cp .env.example .env
+# Edit .env and set: POSTGRES_PASSWORD, SESSION_SECRET
 
-# 3. Stop everything
-./start.sh down
+# Start all 10 microservices + databases + Kafka + NGINX
+./start.sh
 ```
 
-**API Endpoints** (via NGINX on port 80):
+Backend API is now live at **http://localhost:80**
 
-| Route | Service | Swagger Docs |
-|-------|---------|--------------|
-| `/auth/*`, `/users/*` | user-service | http://localhost:8001/docs |
-| `/videos/*` | video-service | http://localhost:8002/docs |
-| `/stream/*` | streaming-service | http://localhost:8003/docs |
-| `/summary/*` | summarization-service | http://localhost:8004/docs |
-| `/trending/*`, `/recommendations/*` | trending-service | http://localhost:8005/docs |
-| `/events/*` | event-ingestion | http://localhost:8006/docs |
-| `/heatmap/*` | heatmap-api | http://localhost:8008/docs |
+---
+
+### Terminal 2 — Start the Frontend
+
+**Option A — Development (recommended, hot-reload):**
+
+```bash
+cd project/frontend
+npm install          # first time only
+npm run dev          # starts at http://localhost:5173
+```
+
+Vite automatically proxies all API calls (`/auth`, `/videos`, etc.) to `http://localhost:80`.
+
+**Option B — Docker (production build):**
+
+```bash
+cd project/frontend
+docker compose up --build
+```
+
+Frontend is served at **http://localhost:3000** and proxies API calls to the backend.
+
+---
+
+### Stop
+
+```bash
+# Stop backend
+cd project/backend && ./start.sh down
+
+# Stop frontend (if running in Docker)
+cd project/frontend && docker compose down
+# Frontend dev server: Ctrl+C
+```
+
+---
+
+## 🌐 Access Points
+
+| What | URL | Notes |
+|------|-----|-------|
+| **Frontend (dev)** | http://localhost:5173 | `npm run dev` — hot reload |
+| **Frontend (Docker)** | http://localhost:3000 | `docker compose up` in `frontend/` |
+| Backend API Gateway | http://localhost:80 | NGINX — routes all `/auth`, `/videos`, etc. |
+| User Service Swagger | http://localhost:8001/docs | — |
+| Video Service Swagger | http://localhost:8002/docs | — |
+| Streaming Swagger | http://localhost:8003/docs | — |
+| Summarization Swagger | http://localhost:8004/docs | — |
+| Trending Swagger | http://localhost:8005/docs | — |
+| Event Ingestion Swagger | http://localhost:8006/docs | — |
+| Heatmap API Swagger | http://localhost:8008/docs | — |
+
+---
+
+## 🛠️ Development Workflow
+
+### Backend — rebuild a single service after code changes
+
+```bash
+cd backend
+docker compose up -d --build <service-name>
+
+# Examples:
+docker compose up -d --build user-service
+docker compose up -d --build video-service
+docker compose up -d --build encoding-worker
+```
+
+### Frontend — hot-reload dev server
+
+```bash
+cd frontend
+npm run dev          # http://localhost:5173  (proxies API to :80)
+```
+
+### Frontend — run tests
+
+```bash
+cd frontend
+npm run test         # Vitest watch mode
+npm run test:run     # single CI run (55 tests)
+npm run test:coverage
+```
+
+### Frontend — rebuild Docker image after UI changes
+
+```bash
+cd frontend
+docker compose up --build
+```
+
+### View backend logs
+
+```bash
+cd backend
+./start.sh logs                          # tail ALL services
+docker compose logs -f user-service      # single service
+docker compose logs -f encoding-worker
+```
+
+### Check backend container health
+
+```bash
+cd backend
+./start.sh status
+# or
+docker compose ps
+```
+
+---
+
+## 🔬 Minimal Stack (API testing without workers/AI)
+
+If you want to test the REST API without waiting for heavy workers:
+
+```bash
+cd backend
+docker compose up -d postgres redis mongo zookeeper kafka nginx
+docker compose up kafka-setup
+docker compose up -d user-service video-service streaming-service
+```
+
+Access Swagger at http://localhost:8001/docs and http://localhost:8002/docs.
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-Browser → NGINX (port 80) → Microservices → Data Stores
-                                  ↕
-                            Apache Kafka
-                                  ↕
-                     Background Workers (encoding, thumbnail)
+┌─────────────────────────────────────────────────────┐
+│  FRONTEND  (independent)                            │
+│                                                     │
+│  Dev:    Vite dev server  :5173                     │
+│  Docker: nginx container  :3000                     │
+│                                                     │
+│  React SPA makes API calls to backend on :80        │
+└────────────────────┬────────────────────────────────┘
+                     │  HTTP  (API calls)
+                     ▼
+┌─────────────────────────────────────────────────────┐
+│  BACKEND  (independent)                             │
+│                                                     │
+│  NGINX API Gateway  :80                             │
+│    ├─ /auth, /users   → user-service     :8001      │
+│    ├─ /videos         → video-service    :8002      │
+│    ├─ /stream         → streaming        :8003      │
+│    ├─ /summary        → summarization    :8004      │
+│    ├─ /trending       → trending         :8005      │
+│    ├─ /events         → event-ingestion  :8006      │
+│    └─ /heatmap        → heatmap-api      :8008      │
+│                                                     │
+│  Apache Kafka  ←→  encoding-worker                  │
+│                ←→  thumbnail-worker                 │
+│                ←→  summarization-service            │
+│                ←→  trending-service                 │
+│                ←→  heatmap-aggregator               │
+│                                                     │
+│  PostgreSQL  │  Redis  │  MongoDB                   │
+└─────────────────────────────────────────────────────┘
 ```
-
-| Service | Port | Responsibility |
-|---------|------|----------------|
-| user-service | 8001 | Registration, login, session auth (Redis) |
-| video-service | 8002 | Video upload, metadata CRUD, Kafka events |
-| encoding-worker | — | Consumes `video.uploaded` → FFmpeg HLS transcode → publishes `video.processed` |
-| thumbnail-worker | — | Consumes `video.uploaded` → FFmpeg thumbnail extraction |
-| streaming-service | 8003 | HLS manifest & segment delivery |
-| summarization-service | 8004 | Consumes `video.processed` → Whisper transcription → DistilBART summary |
-| trending-service | 8005 | Consumes viewer interactions → Redis sorted set leaderboard + recommendations |
-| event-ingestion | 8006 | `POST /events/interaction` → validate + rate limit + Kafka publish (202) |
-| heatmap-aggregator | 8007 | Consumes viewer interactions → 5s bucket scoring → Redis + MongoDB |
-| heatmap-api | 8008 | `GET /heatmap/{id}` all-time, `/live` 5-min window, `/highlights` top segments |
-| shared/ | — | Common exceptions, response schemas, auth dependencies |
-
-**Data Stores:** PostgreSQL (relational data), Redis (sessions & cache), MongoDB (heatmap bucket data; error logs planned), Kafka (async event bus)
 
 ---
 
 ## 📂 Project Structure
 
 ```
-project/                             ← monorepo root
+project/
 ├── backend/
-│   ├── docker-compose.yml           ← full stack orchestration
-│   ├── .env / .env.example          ← environment config
-│   ├── start.sh                     ← convenience start script
+│   ├── docker-compose.yml       ← backend microservices + infrastructure orchestration
+│   ├── .env / .env.example      ← environment config
+│   ├── start.sh                 ← one-command startup script
 │   ├── nginx/
-│   │   └── nginx.conf               ← API gateway (port 80)
+│   │   └── nginx.conf           ← API gateway + SPA proxy (port 80)
 │   └── services/
-│       ├── shared/                  ← common Python module (mounted into all services)
-│       │   ├── exceptions.py        ← AppException hierarchy (NotFound, Auth, Conflict…)
-│       │   ├── schemas.py           ← SuccessResponse[T], PagedResponse[T], ErrorResponse
-│       │   └── dependencies.py      ← get_current_user (session cookie → Redis → user_id)
-│       ├── user-service/            ← :8001 auth, sessions
-│       ├── video-service/           ← :8002 upload, metadata CRUD
-│       ├── encoding-worker/         ← Kafka consumer → FFmpeg HLS transcode
-│       ├── thumbnail-worker/        ← Kafka consumer → FFmpeg thumbnail
-│       ├── streaming-service/       ← :8003 HLS segment delivery
-│       ├── summarization-service/   ← :8004 Whisper + DistilBART
-│       ├── trending-service/        ← :8005 leaderboard + recommendations
-│       ├── event-ingestion/         ← :8006 POST /events/interaction → Kafka
-│       ├── heatmap-aggregator/      ← :8007 Kafka consumer → Redis + MongoDB bucket scoring
-│       └── heatmap-api/             ← :8008 GET /heatmap/{id} all-time / live / highlights
-├── frontend/                        ← React 18 + Vite SPA
-│   ├── Dockerfile                   ← multi-stage build (node → nginx:alpine)
-│   ├── nginx.conf                   ← SPA fallback config
-│   ├── vite.config.js               ← Vite + Vitest config, path aliases, dev proxy
+│       ├── shared/              ← common Python module (exceptions, schemas, auth dep)
+│       ├── user-service/        ← :8001  auth & user profiles
+│       ├── video-service/       ← :8002  upload, metadata, Kafka events
+│       ├── encoding-worker/     ← Kafka consumer → FFmpeg HLS transcode
+│       ├── thumbnail-worker/    ← Kafka consumer → FFmpeg thumbnail
+│       ├── streaming-service/   ← :8003  HLS segment delivery
+│       ├── summarization-service/ ← :8004 Whisper + DistilBART
+│       ├── trending-service/    ← :8005  leaderboard + recommendations
+│       ├── event-ingestion/     ← :8006  interaction event → Kafka
+│       ├── heatmap-aggregator/  ← :8007  Kafka → Redis + MongoDB bucket scoring
+│       └── heatmap-api/         ← :8008  heatmap read API (all-time / live / highlights)
+│
+├── frontend/                    ← React 18 + Vite SPA  (started independently)
+│   ├── docker-compose.yml       ← standalone frontend Docker stack (port 3000)
+│   ├── Dockerfile               ← multi-stage: node:20 build → nginx:alpine serve
+│   ├── nginx.conf.template      ← nginx config with ${BACKEND_URL} substitution
+│   ├── vite.config.js           ← path aliases, dev proxy to :80, Vitest config
 │   ├── .env.example
 │   └── src/
-│       ├── main.jsx                 ← React root
-│       ├── App.jsx                  ← route definitions
-│       ├── api/                     ← Axios client + per-service modules
-│       ├── context/                 ← AuthContext
-│       ├── hooks/                   ← useVideoStatus, useHeatmapSSE, useInteractionTracker
-│       ├── components/              ← Navbar, HlsPlayer, VideoCard, HeatmapChart, …
-│       ├── pages/                   ← Login, Register, Home, Browse, Player, Upload, Dashboard
-│       └── styles/                  ← global CSS
+│       ├── api/                 ← Axios client + per-service API modules
+│       ├── context/             ← AuthContext (login, logout, register, session rehydrate)
+│       ├── hooks/               ← useTheme, useVideoStatus, useInteractionTracker, useHeatmapSSE
+│       ├── components/          ← Navbar, HlsPlayer, VideoCard, VideoGrid,
+│       │                           SummaryPanel, HeatmapChart, UploadProgressBar
+│       ├── pages/               ← Login, Register, Home, Browse, Player, Upload, Dashboard
+│       └── styles/              ← global.css (design tokens, dark/light theme, utilities)
+│
 └── docs/
     ├── ARCHITECTURE.md
     ├── DATABASE.md
     ├── HEATMAP.md
     ├── ROADMAP.md
-    ├── FRONTEND_PLAN.md             ← Phase 9 build plan + test cases
-    ├── diagrams/
-    ├── service-working/
-    └── test/
+    ├── FRONTEND_PLAN.md         ← Phase 9 module plan + 74 test cases
+    └── service-working/         ← per-service technical reference docs
 ```
 
 ---
 
-## 🏛️ Service Structure (user-service as example)
+## 🏛️ Backend Service Architecture
 
-Every service follows the same **three-layer architecture**. Below is `user-service` laid out in full:
+Every service follows a strict **three-layer architecture**:
 
-```
-backend/user-service/
-├── Dockerfile
-├── requirements.txt
-├── alembic.ini                          ← Alembic config for DB migrations
-├── pytest.ini
-│
-├── app/
-│   ├── main.py                          ← FastAPI app, lifespan hooks, exception handlers
-│   ├── config.py                        ← pydantic-settings BaseSettings (DATABASE_URL, REDIS_URL…)
-│   ├── database.py                      ← SQLAlchemy async engine + Base + get_db dependency
-│   ├── redis_client.py                  ← Redis singleton + get_redis dependency
-│   ├── models.py                        ← SQLAlchemy ORM models (User table)
-│   ├── exceptions.py                    ← service-specific exceptions (extends shared/)
-│   │
-│   ├── auth/                            ← domain: registration & login
-│   │   ├── handler/
-│   │   │   └── router.py               ← LAYER 1: HTTP routes (POST /auth/register, /login, /logout)
-│   │   ├── utils/
-│   │   │   ├── service.py              ← LAYER 2: business logic (bcrypt hash, session create/delete)
-│   │   │   ├── schemas.py              ← Pydantic request/response models (RegisterRequest, LoginRequest…)
-│   │   │   └── cache.py                ← Redis helpers (set_session, delete_session, get_user_id)
-│   │   └── dao/
-│   │       └── repository.py           ← LAYER 3: SQLAlchemy queries (get_by_email, create_user)
-│   │
-│   └── users/                          ← domain: profile read
-│       ├── handler/
-│       │   └── router.py               ← GET /users/me (requires session cookie)
-│       ├── utils/
-│       │   ├── service.py              ← fetch user from DB by id
-│       │   └── schemas.py              ← UserResponse schema
-│       └── dao/
-│           └── repository.py           ← get_user_by_id query
-│
-├── migrations/
-│   ├── env.py
-│   └── versions/
-│       └── 0001_create_users_table.py
-│
-└── tests/
-    ├── conftest.py                      ← SQLite in-memory DB + AsyncMock Redis + ASGI client
-    ├── test_auth.py                     ← register, login, logout endpoint tests
-    └── test_users.py                    ← /users/me endpoint tests
-```
+| Layer | File | Responsibility |
+|-------|------|----------------|
+| 1 — Handler | `handler/router.py` | HTTP routing, request/response wiring |
+| 2 — Service | `utils/service.py` | Business logic, orchestration |
+| 3 — Repository | `dao/repository.py` | SQLAlchemy DB queries |
+| Cache | `utils/cache.py` | Redis read/write helpers |
 
-**Layer rules (strictly enforced across all services):**
+**No layer skipping: Router → Service → Repository / Cache**
 
-| Layer | File | Responsibility | Can call |
-|-------|------|----------------|----------|
-| 1 — Handler | `handler/router.py` | HTTP routing, request/response wiring | Service only |
-| 2 — Service | `utils/service.py` | Business logic, orchestration | Repository + Cache |
-| 3 — Repository | `dao/repository.py` | Raw SQLAlchemy queries | DB session only |
-| Cache | `utils/cache.py` | Redis read/write helpers | Redis client only |
+---
 
-No layer skipping: **Router → Service → Repository / Cache**
+## 🎨 Frontend Features
+
+- **Dark / Light theme** toggle with `localStorage` persistence
+- **VidStream teal** design system (`#00c9a7`) — CSS custom properties
+- **HLS video player** via hls.js with Safari native fallback
+- **Interaction tracking** — PLAY, PAUSE, SEEK, REWIND events sent to `/events/interaction`
+- **AI Summary panel** — Whisper transcript + DistilBART key moments with seek-to
+- **Live heatmap** — SSE-powered engagement chart updates in real time
+- **Drag-and-drop upload** with encoding status polling
+- **55 unit tests** (Vitest + Testing Library) — all passing
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend | Python 3.11, FastAPI, SQLAlchemy (async), Alembic, Pydantic v2 |
+| AI/ML | OpenAI Whisper, DistilBART (Hugging Face) |
+| Workers | aiokafka, FFmpeg |
+| Data | PostgreSQL 15, Redis 7, MongoDB 6, Apache Kafka + Zookeeper |
+| Gateway | NGINX (API routing + SPA proxy) |
+| Frontend | React 18, Vite, React Router v6, Axios, hls.js, Recharts |
+| Testing | Vitest, Testing Library, jsdom |
+| Infra | Docker Compose (multi-stage builds) |
 
 ---
 
@@ -179,12 +313,13 @@ No layer skipping: **Router → Service → Repository / Cache**
 
 | Doc | Description |
 |-----|-------------|
-| [Architecture](docs/ARCHITECTURE.md) | System design, component breakdown, data flows, LLD |
+| [Architecture](docs/ARCHITECTURE.md) | System design, data flows, component breakdown |
 | [Database](docs/DATABASE.md) | PostgreSQL, Redis, Kafka schemas |
-| [Heatmap Engine](docs/HEATMAP.md) | Heatmap engine design, bucket scoring, Redis key patterns |
-| [Roadmap](docs/ROADMAP.md) | Build phases & implementation status |
+| [Heatmap Engine](docs/HEATMAP.md) | Bucket scoring, Redis key patterns, SSE streaming |
+| [Roadmap](docs/ROADMAP.md) | Build phases and completion status |
+| [Frontend Plan](docs/FRONTEND_PLAN.md) | Phase 9 module plan + 74 test case specs |
 
-### Service Technical References (`docs/service-working/`)
+### Service Reference Docs (`docs/service-working/`)
 
 | File | Service |
 |------|---------|
@@ -198,151 +333,3 @@ No layer skipping: **Router → Service → Repository / Cache**
 | [08-event-ingestion.md](docs/service-working/08-event-ingestion.md) | Interaction event write gateway |
 | [09-heatmap-aggregator.md](docs/service-working/09-heatmap-aggregator.md) | Kafka → bucket scoring → Redis + MongoDB |
 | [10-heatmap-api.md](docs/service-working/10-heatmap-api.md) | Heatmap read API (all-time / live / highlights) |
-
----
-
-## 📊 Implementation Status
-
-| Phase | Component | Status |
-|-------|-----------|--------|
-| 1 | Infrastructure (Docker, Kafka, NGINX) | ✅ Done |
-| 2 | User Service | ✅ Done |
-| 3 | Video Service | ✅ Done |
-| 4 | Encoding & Thumbnail Workers | ✅ Done |
-| 5 | Streaming Service | ✅ Done |
-| 6 | AI Summarization | ✅ Done |
-| 7 | Trending & Recommendations | ✅ Done |
-| 8a | Event Ingestion Service | ✅ Done |
-| 8b | Heatmap Aggregator | ✅ Done |
-| 8c | Heatmap API | ✅ Done |
-| 9 | Frontend (React) | 🔲 Not started |
-| 10 | Integration & Testing | 🔲 Not started |
-
----
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Backend | Python 3.11, FastAPI, SQLAlchemy (async), Alembic |
-| Workers | aiokafka, FFmpeg, OpenAI Whisper, DistilBART |
-| Data | PostgreSQL 15, Redis 7, MongoDB 6, Apache Kafka |
-| Gateway | NGINX |
-| Infra | Docker Compose |
-| Frontend (planned) | React 18, Vite, hls.js |
-
----
-
-## 🧩 Running Services Individually
-
-Use these commands when you want to start, rebuild, or debug a specific service without restarting the full stack.
-
-### Step 1 — Start Infrastructure (required first)
-
-```bash
-# Start all infrastructure services
-docker compose up -d postgres redis zookeeper kafka mongo nginx
-
-# Wait for Kafka to be ready, then create topics
-docker compose up kafka-setup
-```
-
-### Step 2 — Start Individual Services
-
-```bash
-# User Service (auth, sessions)
-docker compose up -d user-service
-
-# Video Service (upload, metadata)
-docker compose up -d video-service
-
-# Encoding Worker (FFmpeg HLS transcode) — needs Kafka topics
-docker compose up -d encoding-worker
-
-# Thumbnail Worker (FFmpeg thumbnail) — needs Kafka topics
-docker compose up -d thumbnail-worker
-
-# Streaming Service (HLS playback)
-docker compose up -d streaming-service
-
-# Summarization Service (Whisper + BART) — needs Kafka topics
-docker compose up -d summarization-service
-
-# Trending Service (leaderboard + recommendations) — needs Kafka + Redis
-docker compose up -d trending-service
-
-# Event Ingestion (interaction event gateway) — needs Kafka + Redis
-docker compose up -d event-ingestion
-
-# Heatmap Aggregator (Kafka consumer → Redis + MongoDB) — needs Kafka + Redis + MongoDB
-docker compose up -d heatmap-aggregator
-
-# Heatmap API (read endpoints) — needs Redis + MongoDB
-docker compose up -d heatmap-api
-```
-
-### Rebuild a Single Service (after code changes)
-
-```bash
-docker compose up -d --build <service-name>
-
-# Examples:
-docker compose up -d --build user-service
-docker compose up -d --build video-service
-docker compose up -d --build encoding-worker
-```
-
-### View Logs for a Specific Service
-
-```bash
-docker compose logs -f user-service
-docker compose logs -f video-service
-docker compose logs -f encoding-worker
-docker compose logs -f thumbnail-worker
-docker compose logs -f streaming-service
-docker compose logs -f summarization-service
-docker compose logs -f trending-service
-docker compose logs -f event-ingestion
-docker compose logs -f heatmap-aggregator
-docker compose logs -f heatmap-api
-```
-
-### Check Status
-
-```bash
-docker compose ps
-```
-
-### Stop a Single Service
-
-```bash
-docker compose stop <service-name>
-
-# Restart without rebuild:
-docker compose restart <service-name>
-```
-
-### Minimal Stack for API Testing (no workers/AI)
-
-```bash
-docker compose up -d postgres redis zookeeper kafka mongo nginx
-docker compose up kafka-setup
-docker compose up -d user-service video-service streaming-service
-```
-
----
-
-## 🔲 What's Left
-
-### Phase 9 — Frontend (React 18 + Vite)
-- Video player with HLS.js
-- Auth pages (register / login)
-- Upload flow with processing status polling
-- Trending & recommendations feed
-- AI summary panel alongside the player
-- Heatmap overlay on video progress bar (fires `POST /events/interaction` on PLAY, PAUSE, SEEK, REWIND)
-
-### Phase 10 — Integration & End-to-End Testing
-- Full `docker compose up` smoke tests
-- End-to-end flow: upload → encode → stream → summarize → trending → heatmap
-- Final documentation pass

@@ -1,0 +1,118 @@
+.page { padding: var(--space-8) 0 var(--space-12); }
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-8);
+}
+
+.title {
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--color-text-primary);
+}
+
+/* Stats row */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
+}
+
+.stat {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+.statLabel { font-size: var(--text-xs); color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--space-2); }
+.statValue { font-size: var(--text-2xl); font-weight: var(--fw-bold); color: var(--color-text-primary); }
+
+/* Video list */
+.videoList { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.videoRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+  text-decoration: none;
+  color: inherit;
+}
+.videoRow:hover {
+  border-color: var(--color-accent);
+  background: var(--color-surface-hover);
+}
+
+.rowThumb {
+  width: 80px;
+  aspect-ratio: 16/9;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+.rowThumbImg { width: 100%; height: 100%; object-fit: cover; }
+
+.rowInfo { flex: 1; min-width: 0; }
+.rowTitle { font-weight: var(--fw-semi); color: var(--color-text-primary); font-size: var(--text-sm); margin-bottom: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.rowMeta  { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+.rowStatus {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semi);
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+.statusReady      { background: rgba(34,197,94,0.12); color: var(--color-success); }
+.statusProcessing { background: rgba(245,158,11,0.12); color: var(--color-warning); }
+.statusFailed     { background: rgba(239,68,68,0.12); color: var(--color-error); }
+
+/* Heatmap panel */
+.heatPanel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: var(--space-8);
+}
+.heatHeader {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semi);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.heatSelect {
+  margin-left: auto;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.heatBody { padding: var(--space-4) var(--space-5); }
+
+.empty {
+  padding: var(--space-16);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}

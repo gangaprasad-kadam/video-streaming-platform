@@ -92,7 +92,8 @@ async def get_by_id(db: AsyncSession, video_id: str) -> Video | None:
 
 
 async def list_videos(
-    db: AsyncSession, page: int, limit: int, creator_id: str | None = None
+    db: AsyncSession, page: int, limit: int, creator_id: str | None = None,
+    q: str | None = None,
 ) -> VideoPage:
     """Return a page of Video rows ordered by creation date (newest first).
 
@@ -101,6 +102,7 @@ async def list_videos(
         page: 1-based page number.
         limit: Maximum number of rows to return.
         creator_id: Optional UUID string to filter by a specific creator.
+        q: Optional title search string (case-insensitive substring match).
 
     Returns:
         VideoPage with the matching items and the total unfiltered count.
@@ -111,6 +113,9 @@ async def list_videos(
         uid = uuid.UUID(creator_id)
         query = query.where(Video.creator_id == uid)
         count_query = count_query.where(Video.creator_id == uid)
+    if q:
+        query = query.where(Video.title.ilike(f"%{q}%"))
+        count_query = count_query.where(Video.title.ilike(f"%{q}%"))
 
     total_result = await db.execute(count_query)
     total = total_result.scalar_one()

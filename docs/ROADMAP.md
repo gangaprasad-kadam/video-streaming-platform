@@ -16,12 +16,12 @@
 | 4 | Processing Pipeline | ✅ Done | `encoding-worker`, `thumbnail-worker` |
 | 5 | Streaming Service | ✅ Done | `streaming-service` |
 | 6 | AI Summarization | ✅ Done | `summarization-service` |
-| 7 | Trending & Recommendations | 🔲 Not Started | `trending-service` |
-| 8 | Heatmap Engine ⭐ | 🔲 Not Started | `event-ingestion`, `heatmap-aggregator`, `heatmap-api` |
-| 9 | Frontend | 🔲 Not Started | `frontend` |
-| 10 | Integration & Docs | 🔲 Not Started | — (E2E testing, final compose) |
+| 7 | Trending & Recommendations | ✅ Done | `trending-service` |
+| 8 | Heatmap Engine ⭐ | ✅ Done | `event-ingestion`, `heatmap-aggregator`, `heatmap-api` |
+| 9 | Frontend | ✅ Done | `frontend` (React 18 + Vite SPA) |
+| 10 | Integration & Docs | ✅ Done | Full API contract audit, all mismatches fixed |
 
-**Progress: 6 / 10 phases complete**
+**Progress: 10 / 10 phases complete** 🎉
 
 ---
 
@@ -46,7 +46,7 @@ Phase 1 (Infrastructure)
                                              Phase 10 (Integration)
 ```
 
-**Next buildable phases** (all dependencies met): **Phase 4**, **Phase 7**, **Phase 8a**
+**Next buildable phases** (all completed): ✅ All 10 phases done.
 
 ---
 
@@ -100,7 +100,7 @@ Phase 1 (Infrastructure)
 
 ---
 
-### Phase 4 — Processing Pipeline 🔲 NOT STARTED
+### Phase 4 — Processing Pipeline ✅ DONE
 
 **What it builds:** Two Kafka consumer workers that auto-trigger on video upload — the Encoding Worker transcodes to HLS via ffmpeg, and the Thumbnail Worker extracts a JPEG frame. No HTTP API.
 
@@ -116,7 +116,7 @@ Phase 1 (Infrastructure)
 
 ---
 
-### Phase 5 — Streaming Service 🔲 NOT STARTED
+### Phase 5 — Streaming Service ✅ DONE
 
 **What it builds:** FastAPI service that serves HLS video segments to the browser. Caches the `.m3u8` manifest in Redis; serves `.ts` segments directly from disk.
 
@@ -131,7 +131,7 @@ Phase 1 (Infrastructure)
 
 ---
 
-### Phase 6 — AI Summarization 🔲 NOT STARTED
+### Phase 6 — AI Summarization ✅ DONE
 
 **What it builds:** Kafka consumer + HTTP API that transcribes video audio with Whisper, summarizes with BART, extracts key timestamps, and caches results.
 
@@ -147,7 +147,7 @@ Phase 1 (Infrastructure)
 
 ---
 
-### Phase 7 — Trending & Recommendations 🔲 NOT STARTED
+### Phase 7 — Trending & Recommendations ✅ DONE
 
 **What it builds:** Real-time trending leaderboard using Redis sorted sets, driven by viewer interaction events from Kafka. Includes basic hybrid recommendations (trending + watch history).
 
@@ -163,7 +163,7 @@ Phase 1 (Infrastructure)
 
 ---
 
-### Phase 8 — Heatmap Engine ⭐ 🔲 NOT STARTED
+### Phase 8 — Heatmap Engine ⭐ ✅ DONE
 
 The project's **unique feature** — three sub-components:
 
@@ -205,7 +205,7 @@ The project's **unique feature** — three sub-components:
 
 ---
 
-### Phase 9 — Frontend 🔲 NOT STARTED
+### Phase 9 — Frontend ✅ DONE
 
 **What it builds:** React SPA with auth, video browsing, HLS playback (hls.js), upload with status polling, and a creator dashboard with live heatmap visualization (recharts).
 
@@ -221,7 +221,7 @@ The project's **unique feature** — three sub-components:
 
 ---
 
-### Phase 10 — Integration & Documentation 🔲 NOT STARTED
+### Phase 10 — Integration & Documentation ✅ DONE
 
 **What it builds:** Final `docker-compose.yml` wiring all 13 services, end-to-end smoke tests, and submission-ready documentation.
 
@@ -278,52 +278,60 @@ backend/{name}/
 
 ---
 
-## Recommended Build Order
-
-Based on dependency graph and parallel opportunities:
+## Build Order (Completed)
 
 ```
-Already done:  Phase 1 → Phase 2 → Phase 3
-
-Next sprint:   Phase 4  (Processing Pipeline)     ← unblocks 5, 6
-               Phase 7  (Trending)                 ← independent, can parallel
-               Phase 8a (Event Ingestion)           ← independent, can parallel
-
-Then:          Phase 5  (Streaming)                ← needs 4
-               Phase 6  (AI Summarization)          ← needs 4
-               Phase 8b (Aggregator)                ← needs 8a
-                 └── Phase 8c (Heatmap API)         ← needs 8b
-
-Finally:       Phase 9  (Frontend)                 ← needs 5, 6, 7, 8c
-               Phase 10 (Integration)              ← needs everything
+Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6
+                                       → Phase 7 (parallel)
+                                       → Phase 8a → Phase 8b → Phase 8c
+All backend phases → Phase 9 (Frontend)
+All phases → Phase 10 (Integration & Docs) ✅
 ```
 
 ---
 
-## Folder Structure (Final)
+## Folder Structure (Final — As Built)
 
 ```
 project/
-├── docker-compose.yml
-├── .env.example
-├── nginx/
-│   └── nginx.conf
+├── README.md
 ├── backend/
-│   ├── shared/                ← shared Python module (mounted into all services)
-│   ├── user-service/          ← Phase 2 ✅
-│   ├── video-service/         ← Phase 3 ✅
-│   ├── encoding-worker/       ← Phase 4
-│   ├── thumbnail-worker/      ← Phase 4
-│   ├── streaming-service/     ← Phase 5
-│   ├── summarization-service/ ← Phase 6
-│   ├── trending-service/      ← Phase 7
-│   ├── event-ingestion/       ← Phase 8a
-│   ├── heatmap-aggregator/    ← Phase 8b
-│   └── heatmap-api/           ← Phase 8c
-├── frontend/                  ← Phase 9
+│   ├── docker-compose.yml         ← all 10 microservices + infra (started independently)
+│   ├── .env / .env.example
+│   ├── start.sh
+│   ├── nginx/
+│   │   └── nginx.conf             ← API gateway (port 80), routes to 7 services
+│   └── services/
+│       ├── shared/                ← common Python module (exceptions, schemas, auth dep)
+│       ├── user-service/          ← Phase 2 ✅  :8001
+│       ├── video-service/         ← Phase 3 ✅  :8002  (supports ?q= title search)
+│       ├── encoding-worker/       ← Phase 4 ✅
+│       ├── thumbnail-worker/      ← Phase 4 ✅
+│       ├── streaming-service/     ← Phase 5 ✅  :8003
+│       ├── summarization-service/ ← Phase 6 ✅  :8004
+│       ├── trending-service/      ← Phase 7 ✅  :8005
+│       ├── event-ingestion/       ← Phase 8a ✅ :8006
+│       ├── heatmap-aggregator/    ← Phase 8b ✅ (no HTTP port)
+│       └── heatmap-api/           ← Phase 8c ✅ :8008
+├── frontend/                      ← Phase 9 ✅  (started independently)
+│   ├── docker-compose.yml         ← standalone frontend on port 3000
+│   ├── Dockerfile                 ← node:20 build → nginx:alpine serve
+│   ├── nginx.conf.template        ← envsubst template; ${BACKEND_URL} substitution
+│   ├── vite.config.js             ← Vite + Vitest config, proxy to :80 in dev
+│   ├── .env.example               ← BACKEND_URL=http://localhost
+│   └── src/
+│       ├── api/                   ← Axios client + per-service API modules
+│       ├── context/               ← AuthContext (login/logout/register/session rehydrate)
+│       ├── hooks/                 ← useTheme, useVideoStatus, useInteractionTracker, useHeatmapSSE
+│       ├── components/            ← Navbar, HlsPlayer, VideoCard, SummaryPanel, HeatmapChart…
+│       ├── pages/                 ← Login, Register, Home, Browse, Player, Upload, Dashboard
+│       └── styles/                ← global.css (CSS custom properties, dark/light theme)
 └── docs/
-    ├── ROADMAP.md             ← you are here
-    ├── intro.md
-    ├── unique-feature.md
-    └── phases/                ← detailed phase guides
+    ├── ROADMAP.md                 ← you are here
+    ├── ARCHITECTURE.md
+    ├── DATABASE.md
+    ├── HEATMAP.md
+    ├── FRONTEND_PLAN.md           ← Phase 9 module plan + test case specs
+    ├── service-working/           ← per-service technical reference (01–10)
+    └── test/                      ← per-service test guides
 ```

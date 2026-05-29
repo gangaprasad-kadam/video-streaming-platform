@@ -86,21 +86,23 @@ async def list_videos(
     page: int = 1,
     limit: int = 20,
     creator_id: str | None = None,
+    q: str | None = Query(default=None, description="Case-insensitive title search"),
     db: AsyncSession = Depends(get_db),
 ):
-    """List videos with optional creator filter and pagination.
+    """List videos with optional creator filter, title search, and pagination.
 
     Args:
         page: 1-based page number.
         limit: Maximum number of results per page.
         creator_id: Optional UUID string to filter by creator.
+        q: Optional title substring search (case-insensitive).
         db: Async database session.
 
     Returns:
         PagedResponse containing a list of VideoResponse objects plus
         total count, current page, and page size.
     """
-    result = await video_service.list_videos(db, page=page, limit=limit, creator_id=creator_id)
+    result = await video_service.list_videos(db, page=page, limit=limit, creator_id=creator_id, q=q)
     return PagedResponse(
         data=[video_service._to_response(v) for v in result.items],
         total=result.total,

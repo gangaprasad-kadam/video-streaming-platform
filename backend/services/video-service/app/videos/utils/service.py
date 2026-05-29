@@ -138,23 +138,24 @@ async def get_video(db: AsyncSession, redis: Redis, video_id: str) -> VideoRespo
 
 
 async def list_videos(
-    db: AsyncSession, page: int, limit: int, creator_id: str | None
+    db: AsyncSession, page: int, limit: int, creator_id: str | None, q: str | None = None
 ) -> VideoPage:
     """Return a paginated list of videos.
 
     Delegates directly to the repository layer. Optionally filters
-    results to a single creator.
+    results to a single creator and/or by title substring.
 
     Args:
         db: Async database session.
         page: 1-based page number.
         limit: Maximum number of items per page.
         creator_id: Optional UUID string to restrict results to one creator.
+        q: Optional title search string (case-insensitive substring match).
 
     Returns:
         VideoPage containing matched Video ORM instances and total count.
     """
-    return await repo.list_videos(db, page=page, limit=limit, creator_id=creator_id)
+    return await repo.list_videos(db, page=page, limit=limit, creator_id=creator_id, q=q)
 
 
 async def patch_video(

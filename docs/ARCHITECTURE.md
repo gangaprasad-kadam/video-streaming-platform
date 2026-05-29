@@ -20,7 +20,7 @@
 ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
 │User  │ │Video │ │Stream│ │Summ. │ │Trend │ │Event │ │Heat  │
 │Svc   │ │Svc   │ │Svc   │ │Svc   │ │Svc   │ │Ingest│ │API   │
-│:8001 │ │:8002 │ │:8003 │ │:8004 │ │:8005 │ │:8006 │ │:8007 │
+│:8001 │ │:8002 │ │:8003 │ │:8004 │ │:8005 │ │:8006 │ │:8008 │
 └──┬───┘ └──┬───┘ └──────┘ └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘
    │        │  video.uploaded  │        │         │  viewer │
    │        ╠══════════════════╬════════╬═════════╣ events  │
@@ -72,21 +72,21 @@
 | Service                   | Port | Status          | Responsibility                                   |
 | ------------------------- | ---- | --------------- | ------------------------------------------------ |
 | **user-service**          | 8001 | ✅ Implemented  | Register · login · session auth (Redis)          |
-| **video-service**         | 8002 | ✅ Implemented  | Upload metadata · trigger Kafka `video.uploaded` |
+| **video-service**         | 8002 | ✅ Implemented  | Upload metadata · trigger Kafka `video.uploaded` · title search (`?q=`) |
 | **shared**                | —    | ✅ Implemented  | Common deps, exceptions, response schemas        |
-| **streaming-service**     | 8003 | 🔲 Planned      | Serve HLS manifests + `.ts` chunks from disk     |
-| **summarization-service** | 8004 | 🔲 Planned      | Whisper transcription → BART summary → cache     |
-| **trending-service**      | 8005 | 🔲 Planned      | ZINCRBY in Redis → leaderboard via ZREVRANGE     |
-| **event-ingestion**       | 8006 | 🔲 Planned      | Accept viewer events (202 Accepted) → Kafka      |
-| **heatmap-api**           | 8007 | 🔲 Planned      | Serve heatmap data · SSE live feed · highlights  |
+| **streaming-service**     | 8003 | ✅ Implemented  | Serve HLS manifests + `.ts` chunks from disk     |
+| **summarization-service** | 8004 | ✅ Implemented  | Whisper transcription → BART summary → cache     |
+| **trending-service**      | 8005 | ✅ Implemented  | ZINCRBY in Redis → leaderboard via ZREVRANGE     |
+| **event-ingestion**       | 8006 | ✅ Implemented  | Accept viewer events (202 Accepted) → Kafka      |
+| **heatmap-api**           | 8008 | ✅ Implemented  | Serve heatmap data · SSE live feed (`/stream`) · highlights  |
 
 ### Background Workers (Kafka Consumers, no HTTP port)
 
-| Worker                 | Status     | Consumes                    | Produces                               |
-| ---------------------- | ---------- | --------------------------- | -------------------------------------- |
-| **encoding-worker**    | 🔲 Planned | `video.uploaded`            | `video.processed`                      |
-| **thumbnail-worker**   | 🔲 Planned | `video.uploaded`            | —                                      |
-| **heatmap-aggregator** | 🔲 Planned | `viewer-interaction-events` | `heatmap-aggregated`, `heatmap-alerts` |
+| Worker                 | Status          | Consumes                    | Produces                               |
+| ---------------------- | --------------- | --------------------------- | -------------------------------------- |
+| **encoding-worker**    | ✅ Implemented | `video.uploaded`            | `video.processed`                      |
+| **thumbnail-worker**   | ✅ Implemented | `video.uploaded`            | —                                      |
+| **heatmap-aggregator** | ✅ Implemented | `viewer-interaction-events` | `heatmap-aggregated`, `heatmap-alerts` |
 
 ### Data Stores
 

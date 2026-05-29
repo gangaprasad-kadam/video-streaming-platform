@@ -83,17 +83,35 @@ success "Kafka topics ready."
 
 # ── Start microservices ──────────────────────────────────────────────────────
 info "Starting microservices..."
-docker compose up -d user-service video-service
-success "Microservices started."
+docker compose up -d \
+  user-service \
+  video-service \
+  streaming-service \
+  summarization-service \
+  trending-service \
+  event-ingestion \
+  heatmap-aggregator \
+  heatmap-api \
+  encoding-worker \
+  thumbnail-worker
+success "All backend services started."
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}═══════════════════════════════════════════════════════${NC}"
-echo -e "${GREEN} ✅  Platform is up!${NC}"
+echo -e "${GREEN} ✅  VidStream Backend is up!${NC}"
 echo -e "${GREEN}═══════════════════════════════════════════════════════${NC}"
 echo ""
 docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || docker compose ps
 echo ""
-info "Swagger docs → http://localhost:8001/docs  (user-service)"
-info "Swagger docs → http://localhost:8002/docs  (video-service)"
-info "Run './start.sh logs' to tail all service logs"
+info "API Gateway      → http://localhost (port 80)"
+info "User Svc Docs    → http://localhost:8001/docs"
+info "Video Svc Docs   → http://localhost:8002/docs"
+info ""
+info "Now start the frontend:"
+info "  Dev  → cd ../frontend && npm run dev    (http://localhost:5173)"
+info "  Docker → cd ../frontend && docker compose up --build"
+info ""
+info "Run './start.sh logs'   to tail service logs"
+info "Run './start.sh status' to see container health"
+info "Run './start.sh down'   to stop everything"

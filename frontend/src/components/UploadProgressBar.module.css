@@ -1,0 +1,37 @@
+.bar {
+  margin: var(--space-4) 0;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.status {
+  font-weight: var(--fw-semi);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.track {
+  height: 6px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  transition: width 0.5s ease, background 0.3s;
+}
+
+.fillFailed    { background: var(--color-error); }
+.fillReady     { background: var(--color-success); }
+.fillProcessing{ background: var(--color-warning); }

@@ -21,7 +21,7 @@ export default defineConfig({
       '/stream':    { target: 'http://localhost', changeOrigin: true },
       '/summary':   { target: 'http://localhost', changeOrigin: true },
       '/trending':  { target: 'http://localhost', changeOrigin: true },
-      '/recommendations': { target: 'http://localhost', changeOrigin: true },
+      // /trending/recommendations/* is covered by the /trending proxy above
       '/events':    { target: 'http://localhost', changeOrigin: true },
       '/heatmap':   { target: 'http://localhost', changeOrigin: true },
     },
