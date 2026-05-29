@@ -7,18 +7,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import WatchHistory
 
 
-async def get_watch_history(db: AsyncSession, user_id: str) -> list[WatchHistory]:
-    """Return all watch history rows for a user.
+async def get_watch_history(db: AsyncSession, user_id: str, limit: int = 50) -> list[WatchHistory]:
+    """Return watch history rows for a user ordered by most recently watched.
 
     Args:
         db: Active async database session.
         user_id: UUID string of the user.
+        limit: Maximum number of rows to return.
 
     Returns:
-        List of WatchHistory ORM objects.
+        List of WatchHistory ORM objects ordered by watched_at DESC.
     """
     result = await db.execute(
-        select(WatchHistory).where(WatchHistory.user_id == uuid.UUID(user_id))
+        select(WatchHistory)
+        .where(WatchHistory.user_id == uuid.UUID(user_id))
+        .order_by(WatchHistory.watched_at.desc())
+        .limit(limit)
     )
     return list(result.scalars().all())
 

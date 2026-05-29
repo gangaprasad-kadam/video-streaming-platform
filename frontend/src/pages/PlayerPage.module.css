@@ -19,6 +19,8 @@
   box-shadow: var(--shadow-lg);
   position: sticky;
   top: calc(var(--navbar-h) + var(--space-4));
+  width: 100%;
+  min-height: 200px;
 }
 
 .videoTitle {
@@ -75,4 +77,43 @@
   padding: var(--space-16);
   gap: var(--space-3);
   color: var(--color-text-secondary);
+}
+
+/* Tags */
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 var(--space-5);
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+/* Delete button */
+.deleteBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 3px var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-error, #ef4444);
+  background: transparent;
+  color: var(--color-error, #ef4444);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  margin-left: auto;
+}
+
+.deleteBtn:hover {
+  background: var(--color-error, #ef4444);
+  color: #fff;
 }

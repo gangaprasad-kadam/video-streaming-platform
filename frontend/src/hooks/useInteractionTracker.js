@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { postInteraction } from '@/api/events'
 
-export default function useInteractionTracker(videoId, userId = '') {
+export default function useInteractionTracker(videoId, userId = '', creatorId = '') {
   const buffer   = useRef([])
   const prevTime = useRef(0)
   const timerRef = useRef(null)
@@ -23,12 +23,13 @@ export default function useInteractionTracker(videoId, userId = '') {
     if (!videoId) return
     // Payload matches backend InteractionEventRequest (camelCase fields)
     buffer.current.push({
-      userId:  userId || 'anonymous',
-      videoId: videoId,
-      action:  action,
-      videoTs: videoTs,
+      userId:    userId || 'anonymous',
+      videoId:   videoId,
+      action:    action,
+      videoTs:   videoTs,
+      creatorId: creatorId || '',
     })
-  }, [videoId, userId])
+  }, [videoId, userId, creatorId])
 
   const onPlay    = useCallback((e) => track('PLAY',  e.target.currentTime), [track])
   const onPause   = useCallback((e) => track('PAUSE', e.target.currentTime), [track])

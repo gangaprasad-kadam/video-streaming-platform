@@ -31,6 +31,7 @@ internal_router = APIRouter(prefix="/internal/videos", tags=["internal"])
 async def upload_video(
     title: str = Form(...),
     description: str | None = Form(None),
+    tags: str | None = Form(None),
     file: UploadFile = File(...),
     user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
@@ -44,6 +45,7 @@ async def upload_video(
     Args:
         title: Human-readable title for the video.
         description: Optional description text.
+        tags: Comma-separated tag strings (e.g. ``"tech,tutorial"``).
         file: Multipart video file upload.
         user_id: ID of the authenticated uploader (from session cookie).
         db: Async database session.
@@ -52,7 +54,8 @@ async def upload_video(
     Returns:
         SuccessResponse wrapping the newly created VideoResponse.
     """
-    video = await video_service.upload_video(db, redis, file, title, description, user_id)
+    parsed_tags = [t.strip() for t in tags.split(",") if t.strip()] if tags else []
+    video = await video_service.upload_video(db, redis, file, title, description, user_id, tags=parsed_tags)
     return SuccessResponse(data=video_service._to_response(video))
 
 
@@ -138,8 +141,30 @@ async def patch_video(
         VideoNotFoundError: If the video does not exist.
         VideoForbiddenError: If the requester is not the creator.
     """
-    video = await video_service.patch_video(db, redis, video_id, user_id, data.title, data.description)
+    video = await video_service.patch_video(db, redis, video_id, user_id, data.title, data.description, data.tags)
     return SuccessResponse(data=video)
+
+
+@router.delete("/{video_id}", status_code=204)
+async def delete_video(
+    video_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+):
+    """Delete a video and its associated files (creator only).
+
+    Args:
+        video_id: UUID string of the video to delete.
+        user_id: ID of the authenticated user (from session cookie).
+        db: Async database session.
+        redis: Async Redis client.
+
+    Raises:
+        VideoNotFoundError: If the video does not exist.
+        VideoForbiddenError: If the requester is not the creator.
+    """
+    await video_service.delete_video(db, redis, video_id, user_id)
 
 
 @router.get("/{video_id}/status", response_model=SuccessResponse[VideoStatusResponse])

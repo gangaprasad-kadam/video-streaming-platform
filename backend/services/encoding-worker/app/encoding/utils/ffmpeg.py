@@ -37,7 +37,14 @@ async def transcode_to_hls(video_id: str, input_path: str) -> dict:
     cmd = [
         "ffmpeg", "-y",
         "-i", input_path,
-        "-codec:", "copy",
+        "-c:v", "libx264",   # H.264 — universally supported in HLS/TS (handles VP9, AV1, etc.)
+        "-crf", "23",        # quality level: 23 is a good default (lower = better, 18-28 range)
+        "-preset", "fast",   # encoding speed vs compression tradeoff
+        "-profile:v", "main",
+        "-level:v", "4.0",
+        "-c:a", "aac",       # AAC audio for HLS browser compatibility
+        "-b:a", "128k",
+        "-movflags", "+faststart",
         "-start_number", "0",
         "-hls_time", "6",
         "-hls_list_size", "0",

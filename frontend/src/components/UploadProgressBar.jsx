@@ -1,7 +1,7 @@
 import s from './UploadProgressBar.module.css'
 
 const STEPS = ['uploading', 'processing', 'ready']
-const LABELS = { uploading: '⬆️ Uploading', processing: '⚙️ Processing', ready: '✅ Ready', failed: '❌ Failed' }
+const LABELS = { uploading: 'Uploading', processing: 'Processing', ready: 'Ready', failed: 'Failed' }
 
 export default function UploadProgressBar({ status }) {
   const idx   = STEPS.indexOf(status)

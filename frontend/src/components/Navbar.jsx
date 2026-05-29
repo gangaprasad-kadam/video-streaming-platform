@@ -48,6 +48,9 @@ export default function Navbar() {
           <NavLink to="/"       className={navLinkClass} end>Home</NavLink>
           <NavLink to="/browse" className={navLinkClass}>Browse</NavLink>
           {user && (
+            <NavLink to="/history"   className={navLinkClass}>History</NavLink>
+          )}
+          {user && (
             <NavLink to="/dashboard" className={navLinkClass}>Dashboard</NavLink>
           )}
         </nav>
@@ -95,7 +98,17 @@ export default function Navbar() {
                       role="menuitem"
                       onClick={() => setOpen(false)}
                     >
-                      📊 Dashboard
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:'6px',verticalAlign:'middle'}}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                      Dashboard
+                    </Link>
+                    <Link
+                      to="/history"
+                      className={s.dropdownItem}
+                      role="menuitem"
+                      onClick={() => setOpen(false)}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{marginRight:'6px',verticalAlign:'middle'}}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      Watch History
                     </Link>
                     <Link
                       to="/upload"

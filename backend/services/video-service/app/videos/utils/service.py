@@ -37,6 +37,7 @@ def _to_response(video: Video) -> VideoResponse:
         duration=float(video.duration) if video.duration is not None else None,
         file_size_bytes=video.file_size_bytes,
         mime_type=video.mime_type,
+        tags=video.tags or [],
         created_at=video.created_at.isoformat(),
     )
 
@@ -48,6 +49,7 @@ async def upload_video(
     title: str,
     description: str | None,
     creator_id: str,
+    tags: list[str] | None = None,
 ) -> Video:
     """Save an uploaded video file and create its database record.
 
@@ -62,6 +64,7 @@ async def upload_video(
         title: Title for the video.
         description: Optional description for the video.
         creator_id: UUID string of the uploading user.
+        tags: Optional list of tag strings.
 
     Returns:
         The newly created Video ORM instance.
@@ -83,6 +86,7 @@ async def upload_video(
         file_path=file_path,
         file_size_bytes=len(content),
         mime_type=file.content_type,
+        tags=tags or [],
     )
 
     # rename file to actual video UUID
@@ -165,8 +169,9 @@ async def patch_video(
     requester_id: str,
     title: str | None,
     description: str | None,
+    tags: list[str] | None = None,
 ) -> VideoResponse:
-    """Update a video's title and/or description (creator only).
+    """Update a video's title, description, and/or tags (creator only).
 
     Verifies ownership before writing, then invalidates the Redis cache.
 
@@ -177,6 +182,7 @@ async def patch_video(
         requester_id: UUID string of the user making the request.
         title: New title, or ``None`` to leave unchanged.
         description: New description, or ``None`` to leave unchanged.
+        tags: New tags list, or ``None`` to leave unchanged.
 
     Returns:
         Updated VideoResponse.
@@ -191,9 +197,61 @@ async def patch_video(
     if str(video.creator_id) != requester_id:
         raise VideoForbiddenError()
 
-    video = await repo.update_video(db, video, title=title, description=description)
+    video = await repo.update_video(db, video, title=title, description=description, tags=tags)
     await invalidate_video_cache(redis, video_id)
     return _to_response(video)
+
+
+async def delete_video(
+    db: AsyncSession,
+    redis: Redis,
+    video_id: str,
+    requester_id: str,
+) -> None:
+    """Delete a video and clean up its files (creator only).
+
+    Removes the DB row, invalidates the Redis cache, and deletes
+    the original upload, HLS directory, and thumbnail from disk.
+
+    Args:
+        db: Async database session.
+        redis: Async Redis client.
+        video_id: UUID string of the video to delete.
+        requester_id: UUID string of the user making the request.
+
+    Raises:
+        VideoNotFoundError: If the video does not exist.
+        VideoForbiddenError: If the requester is not the creator.
+    """
+    video = await repo.get_by_id(db, video_id)
+    if not video:
+        raise VideoNotFoundError(video_id)
+    if str(video.creator_id) != requester_id:
+        raise VideoForbiddenError()
+
+    # Collect paths before deletion
+    file_path = video.file_path
+    hls_path = video.hls_path
+    thumbnail_path = video.thumbnail_path
+
+    await repo.delete_video(db, video)
+    await invalidate_video_cache(redis, video_id)
+
+    # Clean up files from disk (best-effort — don't fail if files missing)
+    import shutil
+    for path in (file_path, thumbnail_path):
+        if path and os.path.exists(path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+    if hls_path:
+        hls_dir = os.path.dirname(hls_path)
+        if os.path.isdir(hls_dir):
+            try:
+                shutil.rmtree(hls_dir)
+            except OSError:
+                pass
 
 
 async def update_status(

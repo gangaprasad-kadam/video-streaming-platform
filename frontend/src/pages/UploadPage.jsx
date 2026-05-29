@@ -27,7 +27,7 @@ function StatusTracker({ videoId, initialStatus }) {
 export default function UploadPage() {
   const [file,     setFile]     = useState(null)
   const [drag,     setDrag]     = useState(false)
-  const [form,     setForm]     = useState({ title: '', description: '' })
+  const [form,     setForm]     = useState({ title: '', description: '', tags: '' })
   const [errors,   setErrors]   = useState({})
   const [apiErr,   setApiErr]   = useState('')
   const [uploading, setUploading] = useState(false)
@@ -41,7 +41,7 @@ export default function UploadPage() {
       return
     }
     setFile(f)
-    setErrors((e) => { const n = { ...n }; delete n.file; return n })
+    setErrors((e) => { const n = { ...e }; delete n.file; return n })
     if (!form.title) setForm((x) => ({ ...x, title: f.name.replace(/\.[^.]+$/, '') }))
   }
 
@@ -67,6 +67,7 @@ export default function UploadPage() {
     fd.append('file',        file)
     fd.append('title',       form.title)
     fd.append('description', form.description)
+    if (form.tags.trim()) fd.append('tags', form.tags.trim())
     try {
       const res = await uploadVideo(fd)
       setUploaded({ id: res.id ?? res.video_id, status: res.status ?? 'uploading' })
@@ -108,12 +109,14 @@ export default function UploadPage() {
             aria-label="Click or drop a video file here"
             onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
           >
-            <div className={s.dropIcon} aria-hidden>🎬</div>
+            <div className={s.dropIcon} aria-hidden>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
             <div className={s.dropTitle}>
               {file ? 'Video selected' : 'Drop your video here'}
             </div>
             <div className={s.dropSub}>or click to browse · mp4, webm, mov, mkv</div>
-            {file && <div className={s.dropFile}>📎 {file.name}</div>}
+            {file && <div className={s.dropFile}>{file.name}</div>}
             <input
               ref={inputRef}
               type="file"
@@ -152,9 +155,21 @@ export default function UploadPage() {
               />
             </div>
 
+            <div className={s.field}>
+              <label className={s.label} htmlFor="vid-tags">Tags <span style={{ color: 'var(--color-text-muted)' }}>(optional · comma-separated)</span></label>
+              <input
+                id="vid-tags"
+                type="text"
+                className={s.input}
+                placeholder="e.g. tech, tutorial, coding"
+                value={form.tags}
+                onChange={(e) => setForm((x) => ({ ...x, tags: e.target.value }))}
+              />
+            </div>
+
             <button type="submit" className={s.btn} disabled={uploading}>
               {uploading && <span className="spinner" style={{ width: 16, height: 16 }} />}
-              {uploading ? 'Uploading…' : '⬆️ Upload video'}
+              {uploading ? 'Uploading…' : 'Upload video'}
             </button>
           </form>
         </div>

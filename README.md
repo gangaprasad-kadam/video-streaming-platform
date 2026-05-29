@@ -101,7 +101,7 @@ cd project/frontend && docker compose down
 | User Service Swagger | http://localhost:8001/docs | — |
 | Video Service Swagger | http://localhost:8002/docs | — |
 | Streaming Swagger | http://localhost:8003/docs | — |
-| Summarization Swagger | http://localhost:8004/docs | — |
+| Summarization Swagger | http://localhost:8004/docs | ⚠️ Disabled (slow AI startup — uncomment in docker-compose to enable) |
 | Trending Swagger | http://localhost:8005/docs | — |
 | Event Ingestion Swagger | http://localhost:8006/docs | — |
 | Heatmap API Swagger | http://localhost:8008/docs | — |

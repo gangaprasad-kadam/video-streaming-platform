@@ -51,7 +51,7 @@ export default function HomePage() {
         {/* Trending section */}
         <section className={s.section} aria-labelledby="trending-heading">
           <div className={s.sectionHeader}>
-            <h2 className={s.sectionTitle} id="trending-heading">🔥 Trending</h2>
+            <h2 className={s.sectionTitle} id="trending-heading">Trending</h2>
             <Link to="/browse" className={s.seeAll}>See all →</Link>
           </div>
           {trendErr && <div className={s.errorBox}>{trendErr}</div>}
@@ -67,7 +67,7 @@ export default function HomePage() {
         {user && (
           <section className={s.section} aria-labelledby="recs-heading">
             <div className={s.sectionHeader}>
-              <h2 className={s.sectionTitle} id="recs-heading">✨ Recommended for you</h2>
+              <h2 className={s.sectionTitle} id="recs-heading">Recommended for you</h2>
             </div>
             {recsErr && <div className={s.errorBox}>{recsErr}</div>}
             <VideoGrid

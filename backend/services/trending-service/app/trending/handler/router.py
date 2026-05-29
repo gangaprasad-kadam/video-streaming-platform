@@ -6,6 +6,7 @@ from app.database import get_db
 from app.redis_client import get_redis
 from app.trending.utils import service as trending_service
 from app.trending.utils.schemas import RecommendationsResponse, TrendingResponse
+from app.trending.utils.schemas import HistoryResponse
 from shared.schemas import SuccessResponse
 
 router = APIRouter(prefix="/trending", tags=["trending"])
@@ -42,4 +43,24 @@ async def get_recommendations(
     the user has previously watched.
     """
     result = await trending_service.get_recommendations(db, redis, user_id, limit)
+    return SuccessResponse(data=result)
+
+
+@router.get(
+    "/history/{user_id}",
+    response_model=SuccessResponse[HistoryResponse],
+)
+async def get_history(
+    user_id: str,
+    limit: int = Query(default=20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return a user's watch history ordered by most recently watched.
+
+    Args:
+        user_id: UUID string of the requesting user.
+        limit: Maximum number of history entries to return.
+        db: Active async database session.
+    """
+    result = await trending_service.get_history(db, user_id, limit)
     return SuccessResponse(data=result)

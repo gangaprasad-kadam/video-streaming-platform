@@ -36,7 +36,9 @@ export default function VideoCard({ video }) {
         {thumbnail_url ? (
           <img className={s.thumbImg} src={thumbnail_url} alt={title} loading="lazy" />
         ) : (
-          <div className={s.thumbPlaceholder} aria-hidden>🎬</div>
+          <div className={s.thumbPlaceholder} aria-hidden>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m10 9 5 3-5 3V9z"/></svg>
+          </div>
         )}
         {duration && <span className={s.duration}>{formatDuration(duration)}</span>}
         {status === 'processing' && (

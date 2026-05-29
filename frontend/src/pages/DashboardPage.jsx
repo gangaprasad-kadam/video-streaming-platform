@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
-import { listVideos } from '@/api/videos'
+import { listVideos, deleteVideo } from '@/api/videos'
 import HeatmapChart from '@/components/HeatmapChart'
 import s from './DashboardPage.module.css'
 
@@ -21,6 +21,19 @@ export default function DashboardPage() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [user])
+
+  const handleDelete = async (e, videoId) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!window.confirm('Delete this video? This cannot be undone.')) return
+    try {
+      await deleteVideo(videoId)
+      setVideos((prev) => prev.filter((v) => v.id !== videoId))
+      if (selected === videoId) setSelected(null)
+    } catch (err) {
+      alert('Failed to delete: ' + err.message)
+    }
+  }
 
   const ready  = videos.filter((v) => v.status === 'ready').length
   const totalViews = videos.reduce((acc, v) => acc + (v.view_count || 0), 0)
@@ -66,7 +79,7 @@ export default function DashboardPage() {
                 <div className={s.rowThumb}>
                   {v.thumbnail_url
                     ? <img className={s.rowThumbImg} src={v.thumbnail_url} alt={v.title} />
-                    : '🎬'
+                    : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m10 9 5 3-5 3V9z"/></svg>
                   }
                 </div>
                 <div className={s.rowInfo}>
@@ -80,6 +93,14 @@ export default function DashboardPage() {
                 }`}>
                   {v.status}
                 </span>
+                <button
+                  className={s.deleteBtn}
+                  onClick={(e) => handleDelete(e, v.id)}
+                  title="Delete video"
+                  aria-label={`Delete ${v.title}`}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                </button>
               </Link>
             ))}
           </div>
@@ -89,7 +110,10 @@ export default function DashboardPage() {
         {selected && (
           <div className={s.heatPanel}>
             <div className={s.heatHeader}>
-              🔥 Live Heatmap
+              <span style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent)" strokeWidth="2"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" strokeDasharray="2 3"/></svg>
+                Live Heatmap
+              </span>
               <select
                 className={s.heatSelect}
                 value={selected}

@@ -10,6 +10,7 @@ import BrowsePage   from '@/pages/BrowsePage'
 import PlayerPage   from '@/pages/PlayerPage'
 import UploadPage   from '@/pages/UploadPage'
 import DashboardPage from '@/pages/DashboardPage'
+import HistoryPage   from '@/pages/HistoryPage'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/browse"      element={<BrowsePage />} />
           <Route path="/videos/:id"  element={<PlayerPage />} />
           <Route path="/upload"      element={<UploadPage />} />
+          <Route path="/history"     element={<HistoryPage />} />
           <Route path="/dashboard"   element={<DashboardPage />} />
         </Route>
 

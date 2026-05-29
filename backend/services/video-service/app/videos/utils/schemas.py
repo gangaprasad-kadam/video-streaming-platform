@@ -17,6 +17,7 @@ class VideoResponse(BaseModel):
     duration: float | None
     file_size_bytes: int | None
     mime_type: str | None
+    tags: list[str]
     created_at: str
 
     model_config = {"from_attributes": True}
@@ -30,6 +31,7 @@ class VideoUpdateRequest(BaseModel):
 
     title: str | None = None
     description: str | None = None
+    tags: list[str] | None = None
 
 
 class VideoStatusResponse(BaseModel):

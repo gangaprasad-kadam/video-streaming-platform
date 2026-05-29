@@ -26,7 +26,7 @@ export default function HlsPlayer({ src, onTimeUpdate, onPlay, onPause, onSeeked
     <video
       ref={videoRef}
       controls
-      style={{ width: '100%', display: 'block', background: '#000', borderRadius: '8px' }}
+      style={{ width: '100%', height: 'auto', display: 'block', background: '#000', borderRadius: '8px' }}
       onTimeUpdate={onTimeUpdate}
       onPlay={onPlay}
       onPause={onPause}

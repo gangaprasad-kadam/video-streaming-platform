@@ -7,6 +7,8 @@ from app.trending.dao import repository as repo
 from app.trending.utils import video_client
 from app.trending.utils.cache import get_top_videos, increment_score
 from app.trending.utils.schemas import (
+    HistoryItem,
+    HistoryResponse,
     InteractionEvent,
     RecommendationItem,
     RecommendationsResponse,
@@ -114,6 +116,10 @@ async def get_recommendations(
     watched_ids = {str(h.video_id) for h in history}
     creator_ids = list({str(h.creator_id) for h in history})
 
+    # No watch history → no meaningful recommendations yet
+    if not history:
+        return RecommendationsResponse(user_id=user_id, videos=[], total=0)
+
     # Step 3: Filter trending (remove watched)
     unwatched_trending_ids = [vid for vid in trending_ids if vid not in watched_ids]
 
@@ -161,3 +167,46 @@ async def get_recommendations(
 
     merged = trending_items + creator_items
     return RecommendationsResponse(user_id=user_id, videos=merged, total=len(merged))
+
+
+async def get_history(
+    db: AsyncSession, user_id: str, limit: int
+) -> HistoryResponse:
+    """Return the user's watch history enriched with video metadata.
+
+    Args:
+        db: Active async database session.
+        user_id: UUID string of the requesting user.
+        limit: Maximum number of history entries to return.
+
+    Returns:
+        HistoryResponse with video list ordered by most recently watched.
+    """
+    history = await repo.get_watch_history(db, user_id, limit=limit)
+    if not history:
+        return HistoryResponse(user_id=user_id, videos=[], total=0)
+
+    video_ids = [str(h.video_id) for h in history]
+    video_list = await video_client.get_videos_by_ids(video_ids)
+    video_map = {v["id"]: v for v in video_list}
+
+    # Preserve watched_at ordering
+    watched_at_map = {str(h.video_id): h.watched_at for h in history}
+
+    items: list[HistoryItem] = []
+    for vid_id in video_ids:
+        video = video_map.get(vid_id)
+        if not video:
+            continue  # deleted or not ready
+        items.append(
+            HistoryItem(
+                video_id=vid_id,
+                title=video["title"],
+                creator_id=video["creator_id"],
+                thumbnail_path=video.get("thumbnail_path"),
+                duration=video.get("duration"),
+                watched_at=watched_at_map[vid_id].isoformat(),
+            )
+        )
+
+    return HistoryResponse(user_id=user_id, videos=items, total=len(items))

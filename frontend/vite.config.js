@@ -24,6 +24,7 @@ export default defineConfig({
       // /trending/recommendations/* is covered by the /trending proxy above
       '/events':    { target: 'http://localhost', changeOrigin: true },
       '/heatmap':   { target: 'http://localhost', changeOrigin: true },
+      '/media':     { target: 'http://localhost', changeOrigin: true },
     },
   },
 

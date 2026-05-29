@@ -43,6 +43,25 @@ class RecommendationsResponse(BaseModel):
     total: int
 
 
+class HistoryItem(BaseModel):
+    """A single video entry in the user's watch history."""
+
+    video_id: str
+    title: str
+    creator_id: str
+    thumbnail_path: str | None
+    duration: float | None
+    watched_at: str
+
+
+class HistoryResponse(BaseModel):
+    """Response envelope for the history endpoint."""
+
+    user_id: str
+    videos: list[HistoryItem]
+    total: int
+
+
 class InteractionEvent(BaseModel):
     """Schema for a viewer interaction event consumed from Kafka.
 

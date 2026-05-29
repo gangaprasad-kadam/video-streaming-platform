@@ -33,7 +33,9 @@ export default function SummaryPanel({ videoId, onSeek }) {
 
   if (notFound || !data) return (
     <div className={s.empty}>
-      <div className={s.emptyIcon}>🤖</div>
+      <div className={s.emptyIcon}>
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+      </div>
       Summary not available yet.<br />Check back after processing completes.
     </div>
   )

@@ -28,6 +28,7 @@ async def create_video(
     file_path: str,
     file_size_bytes: int | None,
     mime_type: str | None,
+    tags: list[str] | None = None,
 ) -> Video:
     """Insert a new Video row with status ``uploading``.
 
@@ -39,6 +40,7 @@ async def create_video(
         file_path: Filesystem path where the raw upload is stored.
         file_size_bytes: Upload size in bytes, or ``None`` if unknown.
         mime_type: MIME type of the uploaded file, or ``None`` if unknown.
+        tags: Optional list of tag strings.
 
     Returns:
         The newly persisted Video ORM instance.
@@ -50,6 +52,7 @@ async def create_video(
         file_path=file_path,
         file_size_bytes=file_size_bytes,
         mime_type=mime_type,
+        tags=tags or [],
         status=VideoStatus.uploading,
     )
     db.add(video)
@@ -178,8 +181,8 @@ async def get_ready_videos_by_creators(
     return list(result.scalars().all())
 
 
-async def update_video(db: AsyncSession, video: Video, title: str | None, description: str | None) -> Video:
-    """Update a video's title and/or description in place.
+async def update_video(db: AsyncSession, video: Video, title: str | None, description: str | None, tags: list[str] | None = None) -> Video:
+    """Update a video's title, description, and/or tags in place.
 
     Only non-``None`` arguments are applied, so callers can pass ``None``
     to leave a field unchanged.
@@ -189,6 +192,7 @@ async def update_video(db: AsyncSession, video: Video, title: str | None, descri
         video: Video ORM instance to modify.
         title: New title, or ``None`` to keep the existing value.
         description: New description, or ``None`` to keep the existing value.
+        tags: New tags list, or ``None`` to keep the existing value.
 
     Returns:
         The updated and refreshed Video ORM instance.
@@ -197,6 +201,8 @@ async def update_video(db: AsyncSession, video: Video, title: str | None, descri
         video.title = title
     if description is not None:
         video.description = description
+    if tags is not None:
+        video.tags = tags
     await db.commit()
     await db.refresh(video)
     return video
@@ -252,3 +258,14 @@ async def update_status(
     await db.commit()
     await db.refresh(video)
     return video
+
+
+async def delete_video(db: AsyncSession, video: Video) -> None:
+    """Delete a Video row from the database.
+
+    Args:
+        db: Async database session.
+        video: Video ORM instance to delete.
+    """
+    await db.delete(video)
+    await db.commit()

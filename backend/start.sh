@@ -87,14 +87,13 @@ docker compose up -d \
   user-service \
   video-service \
   streaming-service \
-  summarization-service \
   trending-service \
   event-ingestion \
   heatmap-aggregator \
   heatmap-api \
   encoding-worker \
   thumbnail-worker
-success "All backend services started."
+success "All backend services started (summarization-service disabled — uncomment in docker-compose.yml to enable)."
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo ""

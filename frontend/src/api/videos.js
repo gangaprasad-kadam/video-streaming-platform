@@ -5,8 +5,10 @@ const normVideo = (v) => ({
   ...v,
   id:            v.id,
   thumbnail_url: v.thumbnail_path ?? null,   // backend: thumbnail_path
+  creator_id:    v.creator_id ?? null,        // keep for ownership checks
   creator_name:  v.creator_id ?? '',          // no name in response; show id as fallback
   view_count:    v.view_count ?? null,        // not in video-service response
+  tags:          v.tags ?? [],
 })
 
 export const uploadVideo = (formData) =>
@@ -15,6 +17,7 @@ export const uploadVideo = (formData) =>
 export const getVideo       = async (id)     => normVideo(await client.get(`/videos/${id}`))
 export const getVideoStatus = (id)           => client.get(`/videos/${id}/status`)
 export const updateVideo    = (id, data)     => client.patch(`/videos/${id}`, data)
+export const deleteVideo    = (id)           => client.delete(`/videos/${id}`)
 
 export const listVideos = async (params) => {
   // Returns PagedResponse: { data: [...VideoResponse], total, page, page_size }
