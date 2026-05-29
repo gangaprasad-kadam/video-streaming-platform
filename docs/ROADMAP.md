@@ -54,14 +54,14 @@ Phase 1 (Infrastructure)
 
 ### Phase 1 — Infrastructure & Skeleton ✅ DONE
 
-**What it builds:** Docker Compose environment with all shared infrastructure (PostgreSQL, MongoDB, Redis, Kafka, NGINX gateway) and the `services/shared/` Python module.
+**What it builds:** Docker Compose environment with all shared infrastructure (PostgreSQL, MongoDB, Redis, Kafka, NGINX gateway) and the `backend/shared/` Python module.
 
 **Key deliverables:**
 - `docker-compose.yml` with 6 infra services + health checks
 - NGINX reverse proxy with route-based upstream mapping
 - Kafka topic pre-creation via init container (5 topics)
 - `.env.example` with all config variables
-- `services/shared/` — dependencies, exceptions, response schemas
+- `backend/shared/` — dependencies, exceptions, response schemas
 
 **Dependencies:** None
 **Tech:** Docker Compose, PostgreSQL 15, MongoDB 6, Redis 7, Kafka (Confluent 7.5), NGINX
@@ -252,7 +252,7 @@ No layer skipping: Router → Service → Repository/Cache.
 ### Standard Service Structure
 
 ```
-services/{name}/
+backend/{name}/
 ├── Dockerfile
 ├── requirements.txt
 ├── app/
@@ -308,7 +308,7 @@ project/
 ├── .env.example
 ├── nginx/
 │   └── nginx.conf
-├── services/
+├── backend/
 │   ├── shared/                ← shared Python module (mounted into all services)
 │   ├── user-service/          ← Phase 2 ✅
 │   ├── video-service/         ← Phase 3 ✅

@@ -53,7 +53,7 @@ Tracks viewer micro-interactions (pauses, rewinds, seeks, skips, speed changes) 
 
 ## Microservices
 
-### 1. Event Ingestion Service (`/services/event-ingestion`)
+### 1. Event Ingestion Service (`/backend/event-ingestion`)
 
 Accepts raw viewer events, validates, and publishes to Kafka. Returns `202 Accepted` immediately.
 
@@ -76,7 +76,7 @@ Response: 202 Accepted
 
 Events are batched client-side every 3 seconds before POST.
 
-### 2. Heatmap Aggregation Service (`/services/heatmap-aggregator`)
+### 2. Heatmap Aggregation Service (`/backend/heatmap-aggregator`)
 
 Kafka consumer maintaining real-time segment counters in Redis, flushing hourly to PostgreSQL.
 
@@ -85,7 +85,7 @@ Kafka consumer maintaining real-time segment counters in Redis, flushing hourly 
 - **All-time cumulative counts** in Redis (evicted to PostgreSQL after 7 days)
 - **Spike detection** — segment rewind rate >3σ above baseline → publishes to `heatmap-alerts` Kafka topic
 
-### 3. Heatmap API Service (`/services/heatmap-api`)
+### 3. Heatmap API Service (`/backend/heatmap-api`)
 
 Serves heatmap data to the creator dashboard via REST and SSE.
 

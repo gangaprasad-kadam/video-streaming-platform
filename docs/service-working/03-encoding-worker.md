@@ -415,7 +415,7 @@ CMD ["python3", "-m", "app.main"]
 - Installs `ffmpeg` package from apt — includes both `ffmpeg` and `ffprobe` binaries
 - No uvicorn, no web server — just `python3 -m app.main`
 - docker-compose mounts `media_data:/media` (read-write — worker writes HLS output)
-- docker-compose mounts `./services/shared:/app/shared:ro`
+- docker-compose mounts `./backend/shared:/app/shared:ro`
 
 ---
 

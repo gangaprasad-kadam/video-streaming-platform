@@ -405,7 +405,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8008"]
 
 **Run tests:**
 ```bash
-cd services/heatmap-api
+cd backend/heatmap-api
 python -m pytest tests/ -v
 # Expected: 10 passed
 ```

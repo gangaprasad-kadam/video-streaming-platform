@@ -334,7 +334,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8006"]
 
 **Run tests:**
 ```bash
-cd services/event-ingestion
+cd backend/event-ingestion
 python -m pytest tests/ -v
 # Expected: 4 passed
 ```

@@ -543,7 +543,7 @@ CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --
 - Installs `gcc libpq-dev` (needed for `asyncpg` native extension compilation)
 - Creates media subdirectories at build time
 - Runs on port **8002**
-- docker-compose mounts `./services/shared:/app/shared:ro` and `media_data:/media`
+- docker-compose mounts `./backend/shared:/app/shared:ro` and `media_data:/media`
 
 ---
 
@@ -594,7 +594,7 @@ CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --
 
 **Run tests:**
 ```bash
-cd services/video-service
+cd backend/video-service
 python -m pytest tests/ -q
 # Expected: 9 passed
 ```

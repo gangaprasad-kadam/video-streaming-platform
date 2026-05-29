@@ -312,7 +312,7 @@ failure will be retried on the next delivery of the same event (if Kafka redeliv
 
 **Run tests:**
 ```bash
-cd services/heatmap-aggregator
+cd backend/heatmap-aggregator
 python -m pytest tests/ -v
 # Expected: 7 passed
 ```

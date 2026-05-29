@@ -10,10 +10,10 @@ A scalable distributed video streaming platform (YouTube/Netflix-style) built wi
 
 ```bash
 # 1. Copy env file
-cp .env.example .env
+cp backend/.env.example backend/.env
 
-# 2. Start everything
-./start.sh
+# 2. Start everything (from project root)
+cd backend && ./start.sh
 
 # 3. Stop everything
 ./start.sh down
@@ -64,35 +64,51 @@ Browser → NGINX (port 80) → Microservices → Data Stores
 ## 📂 Project Structure
 
 ```
-project/
-├── docker-compose.yml
-├── .env / .env.example
-├── start.sh
-├── nginx/
-│   └── nginx.conf
-├── services/
-│   ├── shared/                      ← common Python module (mounted into all services)
-│   │   ├── exceptions.py            ← AppException hierarchy (NotFound, Auth, Conflict…)
-│   │   ├── schemas.py               ← SuccessResponse[T], PagedResponse[T], ErrorResponse
-│   │   └── dependencies.py          ← get_current_user (session cookie → Redis → user_id)
-│   ├── user-service/                ← :8001 auth, sessions
-│   ├── video-service/               ← :8002 upload, metadata CRUD
-│   ├── encoding-worker/             ← Kafka consumer → FFmpeg HLS transcode
-│   ├── thumbnail-worker/            ← Kafka consumer → FFmpeg thumbnail
-│   ├── streaming-service/           ← :8003 HLS segment delivery
-│   ├── summarization-service/       ← :8004 Whisper + DistilBART
-│   ├── trending-service/            ← :8005 leaderboard + recommendations
-│   ├── event-ingestion/             ← :8006 POST /events/interaction → Kafka
-│   ├── heatmap-aggregator/          ← :8007 Kafka consumer → Redis + MongoDB bucket scoring
-│   └── heatmap-api/                 ← :8008 GET /heatmap/{id} all-time / live / highlights
+project/                             ← monorepo root
+├── backend/
+│   ├── docker-compose.yml           ← full stack orchestration
+│   ├── .env / .env.example          ← environment config
+│   ├── start.sh                     ← convenience start script
+│   ├── nginx/
+│   │   └── nginx.conf               ← API gateway (port 80)
+│   └── services/
+│       ├── shared/                  ← common Python module (mounted into all services)
+│       │   ├── exceptions.py        ← AppException hierarchy (NotFound, Auth, Conflict…)
+│       │   ├── schemas.py           ← SuccessResponse[T], PagedResponse[T], ErrorResponse
+│       │   └── dependencies.py      ← get_current_user (session cookie → Redis → user_id)
+│       ├── user-service/            ← :8001 auth, sessions
+│       ├── video-service/           ← :8002 upload, metadata CRUD
+│       ├── encoding-worker/         ← Kafka consumer → FFmpeg HLS transcode
+│       ├── thumbnail-worker/        ← Kafka consumer → FFmpeg thumbnail
+│       ├── streaming-service/       ← :8003 HLS segment delivery
+│       ├── summarization-service/   ← :8004 Whisper + DistilBART
+│       ├── trending-service/        ← :8005 leaderboard + recommendations
+│       ├── event-ingestion/         ← :8006 POST /events/interaction → Kafka
+│       ├── heatmap-aggregator/      ← :8007 Kafka consumer → Redis + MongoDB bucket scoring
+│       └── heatmap-api/             ← :8008 GET /heatmap/{id} all-time / live / highlights
+├── frontend/                        ← React 18 + Vite SPA
+│   ├── Dockerfile                   ← multi-stage build (node → nginx:alpine)
+│   ├── nginx.conf                   ← SPA fallback config
+│   ├── vite.config.js               ← Vite + Vitest config, path aliases, dev proxy
+│   ├── .env.example
+│   └── src/
+│       ├── main.jsx                 ← React root
+│       ├── App.jsx                  ← route definitions
+│       ├── api/                     ← Axios client + per-service modules
+│       ├── context/                 ← AuthContext
+│       ├── hooks/                   ← useVideoStatus, useHeatmapSSE, useInteractionTracker
+│       ├── components/              ← Navbar, HlsPlayer, VideoCard, HeatmapChart, …
+│       ├── pages/                   ← Login, Register, Home, Browse, Player, Upload, Dashboard
+│       └── styles/                  ← global CSS
 └── docs/
-    ├── ARCHITECTURE.md              ← system design & LLD
-    ├── DATABASE.md                  ← schemas (PostgreSQL, Redis, Kafka)
-    ├── HEATMAP.md                   ← heatmap engine design & scoring spec
-    ├── ROADMAP.md                   ← all build phases & status
-    ├── diagrams/                    ← architecture diagrams (PNG)
-    ├── service-working/             ← per-service technical reference (01–10)
-    └── test/                        ← per-service Postman testing guides (01–09)
+    ├── ARCHITECTURE.md
+    ├── DATABASE.md
+    ├── HEATMAP.md
+    ├── ROADMAP.md
+    ├── FRONTEND_PLAN.md             ← Phase 9 build plan + test cases
+    ├── diagrams/
+    ├── service-working/
+    └── test/
 ```
 
 ---
@@ -102,7 +118,7 @@ project/
 Every service follows the same **three-layer architecture**. Below is `user-service` laid out in full:
 
 ```
-services/user-service/
+backend/user-service/
 ├── Dockerfile
 ├── requirements.txt
 ├── alembic.ini                          ← Alembic config for DB migrations

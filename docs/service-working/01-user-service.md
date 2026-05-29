@@ -456,7 +456,7 @@ CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --
 
 **Run tests:**
 ```bash
-cd services/user-service
+cd backend/user-service
 python -m pytest tests/ -q
 # Expected: 10 passed
 ```

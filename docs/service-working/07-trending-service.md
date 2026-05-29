@@ -430,7 +430,7 @@ pytest tests/ -v
 - **Overrides:** `app.dependency_overrides[get_db]` + `app.dependency_overrides[get_redis]`
 
 ```bash
-cd services/trending-service && python3 -m pytest tests/ -v
+cd backend/trending-service && python3 -m pytest tests/ -v
 ```
 
 **7 tests:**

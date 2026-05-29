@@ -181,7 +181,7 @@ project/
 ├── .env.example
 ├── nginx/
 │   └── nginx.conf
-├── services/
+├── backend/
 │   ├── shared/                     ← Python package shared by all services
 │   │   ├── __init__.py
 │   │   ├── dependencies.py         ← get_db(), get_redis(), get_current_user()

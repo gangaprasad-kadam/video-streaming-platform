@@ -403,7 +403,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"]
 
 **docker-compose volume mounts:**
 - `media_data:/media:ro` — **read-only** (streaming reads, never writes)
-- `./services/shared:/app/shared:ro` — shared module
+- `./backend/shared:/app/shared:ro` — shared module
 
 **Depends on:** PostgreSQL, Redis (no Kafka, no MongoDB, no Python packages beyond stdlib)
 
@@ -461,7 +461,7 @@ No Kafka, no MongoDB — simple read-only serving service.
 
 **Run tests:**
 ```bash
-cd services/streaming-service
+cd backend/streaming-service
 python -m pytest tests/ -q
 # Expected: 4 passed
 ```

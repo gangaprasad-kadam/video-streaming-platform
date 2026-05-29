@@ -646,7 +646,7 @@ instantly with models ready.
 
 **Run tests:**
 ```bash
-cd services/summarization-service
+cd backend/summarization-service
 python -m pytest tests/ -q
 # Expected: 4 passed
 ```
